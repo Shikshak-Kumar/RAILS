@@ -1,7 +1,8 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "rails-risk-sentinel-ui",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "RAILS — Real-time Risk, Fraud and Regulatory Intelligence Sentinel Dashboard",
   "type": "module",
   "scripts": {
     "dev": "vite",
