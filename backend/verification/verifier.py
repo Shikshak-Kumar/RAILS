@@ -11,8 +11,12 @@ class VerificationResult:
         self.issues = issues or []
         self.evidence_ids = evidence_ids or []
 
+    @property
+    def verified(self) -> bool:
+        return self.ok
+
     def model_dump(self) -> dict[str, Any]:
-        return {'ok': self.ok, 'issues': self.issues, 'evidence_ids': self.evidence_ids}
+        return {'ok': self.ok, 'verified': self.ok, 'issues': self.issues, 'evidence_ids': self.evidence_ids}
 
 
 class Verifier:

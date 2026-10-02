@@ -40,6 +40,9 @@ def anomaly_check(transaction_id: str, sender_id: str, receiver_id: str, amount:
 
 @register_tool('account_risk_check')
 def account_risk_check(account_id: str, history: list[dict[str, Any]] | None = None, **kwargs: Any) -> dict[str, Any]:
+    if history is None:
+        from backend.db.repositories.transaction_repository import transaction_repository
+        history = transaction_repository.account_history(account_id, limit=50)
     return predict_account_risk(account_id=account_id, history=history or [], **kwargs)
 
 

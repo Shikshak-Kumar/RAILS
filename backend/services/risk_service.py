@@ -219,6 +219,32 @@ class RiskService:
 
         overall_score = float(round(max(0.0, min(1.0, overall_score)), 4))
 
+        # Build explainable risk drivers
+        risk_drivers: list[str] = []
+        if fraud_prob is not None and fraud_prob >= 0.156:
+            risk_drivers.append(f"Critical fraud probability model inference: {fraud_prob:.1%}")
+        elif fraud_prob is not None and fraud_prob >= 0.132:
+            risk_drivers.append(f"Elevated fraud probability model inference: {fraud_prob:.1%}")
+
+        if anomaly_sc is not None and anomaly_sc >= 0.999:
+            risk_drivers.append(f"Critical Isolation Forest anomaly outlier: {anomaly_sc:.1%}")
+        elif anomaly_sc is not None and anomaly_sc >= 0.95:
+            risk_drivers.append(f"Unusual transaction pattern anomaly score: {anomaly_sc:.1%}")
+
+        if account_sc is not None and account_sc >= 0.75:
+            risk_drivers.append(f"High risk counterparty account score: {account_sc:.2f}")
+
+        # Deterministic rules drivers
+        if rule_level in {'HIGH', 'CRITICAL'}:
+            triggered_rules = rules_signal.get('triggered_details', [])
+            for r in triggered_rules:
+                rname = r.get('rule')
+                rdesc = r.get('description', '')
+                risk_drivers.append(f"Escalated to {risk_level} because rule '{rname}' was triggered ({rdesc}).")
+
+        if not risk_drivers:
+            risk_drivers.append("All ML risk scores, anomaly metrics, and AML rules within normal baselines.")
+
         # 4. Status determination & Verifier
         analysis_status = "completed"
         if any('error' in r for _, r, _ in tool_results):
@@ -238,10 +264,14 @@ class RiskService:
             transaction_id=tx.transaction_id,
             fraud_probability=fraud.get('fraud_probability'),
             anomaly_score=anomaly.get('anomaly_score'),
+            account_risk_score=account_sc,
             risk_score=overall_score,
+            overall_score=overall_score,
             risk_level=risk_level,
-            signals=all_signals,
             risk_types=["fraud"] if (fraud.get('fraud_probability') or 0.0) >= 0.132 else [],
+            signals=all_signals,
+            risk_drivers=risk_drivers,
+            rule_results=rules_signal.get('rule_details', []),
             model_results=[
                 ModelResult(model_name='fraud_model', model_version=fraud.get('model_version'), score=fraud.get('fraud_probability'), risk_level=fraud.get('risk_level'), output_key='fraud_probability'),
                 ModelResult(model_name='anomaly_model', model_version=anomaly.get('model_version'), score=anomaly.get('anomaly_score'), risk_level=anomaly.get('risk_level'), output_key='anomaly_score'),

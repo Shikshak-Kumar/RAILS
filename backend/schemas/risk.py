@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,10 +21,14 @@ class RiskAssessment(BaseModel):
     transaction_id: str | None = None
     fraud_probability: float | None = None
     anomaly_score: float | None = None
+    account_risk_score: float | None = None
     risk_score: float | None = None
+    overall_score: float | None = None
     risk_level: Literal['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] = 'LOW'
     risk_types: list[str] = Field(default_factory=list)
     signals: list[str] = Field(default_factory=list)
+    risk_drivers: list[str] = Field(default_factory=list)
+    rule_results: list[dict[str, Any]] = Field(default_factory=list)
     model_results: list[ModelResult] = Field(default_factory=list)
     model_versions: list[str] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)

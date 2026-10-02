@@ -92,26 +92,36 @@ def evaluate_transaction_rules(
         'description': f"Immediate outflow of ${amount_float:,.2f} corresponds to >= 75% of recent 1h inflow (${s_inflow_1h:,.2f})",
     })
 
-    # Rule 4: High fan-out (one sender to many receivers)
+    # Rule 4: High fan-out (rapid dispersal from one sender to multiple distinct receivers in 24h)
+    s_distinct_receivers_24h = len({
+        str(item.get('receiver_id'))
+        for item in s_hist
+        if item.get('sender_id') == sender_id and (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 86400
+    })
     s_fanout_ratio = s_out_deg / max(1.0, float(s_in_deg + s_out_deg))
-    fanout_triggered = bool(s_out_deg >= 5 and s_fanout_ratio >= 0.8)
+    fanout_triggered = bool(s_out_deg >= 5 and s_fanout_ratio >= 0.8 and s_distinct_receivers_24h >= 4)
     rules.append({
         'rule': 'high_fanout',
         'triggered': fanout_triggered,
         'value': round(s_fanout_ratio, 2),
         'threshold': 0.8,
-        'description': f"Sender fan-out ratio is {s_fanout_ratio:.2f} across {s_out_deg} outgoing counterparties",
+        'description': f"Rapid fan-out: {s_distinct_receivers_24h} distinct receivers in 24h (ratio: {s_fanout_ratio:.2f})",
     })
 
-    # Rule 5: High fan-in (many senders to one receiver)
+    # Rule 5: High fan-in (rapid aggregation into one receiver from multiple distinct senders in 24h)
+    r_distinct_senders_24h = len({
+        str(item.get('sender_id'))
+        for item in r_hist
+        if item.get('receiver_id') == receiver_id and (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 86400
+    })
     r_fanin_ratio = r_in_deg / max(1.0, float(r_in_deg + r_out_deg))
-    fanin_triggered = bool(r_in_deg >= 5 and r_fanin_ratio >= 0.8)
+    fanin_triggered = bool(r_in_deg >= 5 and r_fanin_ratio >= 0.8 and r_distinct_senders_24h >= 4)
     rules.append({
         'rule': 'high_fanin',
         'triggered': fanin_triggered,
         'value': round(r_fanin_ratio, 2),
         'threshold': 0.8,
-        'description': f"Receiver fan-in ratio is {r_fanin_ratio:.2f} across {r_in_deg} incoming counterparties",
+        'description': f"Rapid fan-in: {r_distinct_senders_24h} distinct senders in 24h (ratio: {r_fanin_ratio:.2f})",
     })
 
     # Rule 6: New counterparty

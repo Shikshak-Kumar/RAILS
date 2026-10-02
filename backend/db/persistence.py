@@ -36,12 +36,12 @@ def ensure_schema() -> None:
 
 def get_connection() -> Any:
     """Return a read-replica connection (transactions live here)."""
-    return psycopg.connect(get_read_url(), connect_timeout=3)
+    return psycopg.connect(get_read_url(), connect_timeout=10)
 
 
 def get_write_connection() -> Any:
     """Return a write-database connection for inserts/updates."""
-    return psycopg.connect(get_write_url(), connect_timeout=3)
+    return psycopg.connect(get_write_url(), connect_timeout=10)
 
 
 __all__ = [

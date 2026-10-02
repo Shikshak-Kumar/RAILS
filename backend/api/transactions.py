@@ -12,11 +12,17 @@ router = APIRouter(prefix="", tags=["transactions"])
 
 @router.get('/transactions')
 def list_transactions(
+    page: int | None = Query(None, ge=1),
+    page_size: int | None = Query(None, ge=1, le=200),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     search: str | None = None,
 ) -> dict[str, object]:
-    items = transaction_repository.list(limit=limit, offset=offset, search=search)
+    effective_limit = page_size if page_size is not None else limit
+    effective_offset = ((page - 1) * effective_limit) if page is not None else offset
+    current_page = (effective_offset // effective_limit) + 1 if effective_limit > 0 else 1
+
+    items = transaction_repository.list(limit=effective_limit, offset=effective_offset, search=search)
     total = transaction_repository.count_total()
     tx_ids = [tx.transaction_id for tx in items]
     alerts_map = alert_repository.get_alerts_by_txs(tx_ids)
@@ -39,7 +45,15 @@ def list_transactions(
                 ],
             }
         enriched.append(tx_dict)
-    return {'items': enriched, 'count': len(enriched), 'total': total}
+    return {
+        'items': enriched,
+        'count': len(enriched),
+        'total': total,
+        'page': current_page,
+        'page_size': effective_limit,
+        'has_next': (effective_offset + len(enriched)) < total,
+        'has_previous': effective_offset > 0,
+    }
 
 
 @router.get('/transactions/{transaction_id}')

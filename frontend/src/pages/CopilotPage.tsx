@@ -19,6 +19,7 @@ const toolNames = [
 
 const COPILOT_STORAGE_KEY = 'rails.copilotMessages';
 const ACTIVE_EXEC_KEY = 'rails.activeExecutionId';
+const CONVERSATION_ID_KEY = 'rails.copilotConversationId';
 
 export function CopilotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
@@ -98,7 +99,15 @@ export function CopilotPage() {
     setIsThinking(true);
 
     try {
-      const response = await api.chatWithCopilot(text);
+      let convId = localStorage.getItem(CONVERSATION_ID_KEY);
+      if (!convId) {
+        convId = `conv-${Date.now()}`;
+        localStorage.setItem(CONVERSATION_ID_KEY, convId);
+      }
+      const response = await api.chatWithCopilot(text, undefined, undefined, undefined, convId);
+      if (response.conversation_id) {
+        localStorage.setItem(CONVERSATION_ID_KEY, response.conversation_id);
+      }
       if (response.execution_id) {
         localStorage.setItem(ACTIVE_EXEC_KEY, response.execution_id);
       }
@@ -173,30 +182,9 @@ export function CopilotPage() {
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white">
               <Zap className="h-4 w-4 text-black animate-pulse" />
             </div>
-            <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 space-y-3 min-w-[280px]">
-              <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span className="font-bold text-white flex items-center gap-2">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
-                  Agent Execution Pipeline
-                </span>
-                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 font-bold uppercase">
-                  RUNNING
-                </span>
-              </div>
-              <div className="space-y-1.5 pt-1 text-xs">
-                <div className="flex items-center gap-2 text-green-400">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>Intent & Tool Planning</span>
-                </div>
-                <div className="flex items-center gap-2 text-neutral-200">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
-                  <span>Executing Tools & Inferences</span>
-                </div>
-                <div className="flex items-center gap-2 text-neutral-500">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>Evidence Collection & Verifier</span>
-                </div>
-              </div>
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-3 flex items-center gap-2.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+              <span className="text-xs text-neutral-300">RAILS Copilot is analyzing verified records...</span>
             </div>
           </div>
         )}
@@ -252,6 +240,7 @@ export function CopilotPage() {
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
+  const [showDetails, setShowDetails] = useState(false);
 
   if (isUser) {
     return (
@@ -263,6 +252,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     );
   }
 
+  const hasTools = message.tool_calls && message.tool_calls.length > 0;
+
   return (
     <div className="flex gap-3">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white">
@@ -271,42 +262,57 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <div className="flex-1 min-w-0">
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-4">
           {/* Natural language answer */}
-          <p className="text-sm text-neutral-200 whitespace-pre-wrap leading-relaxed">{message.content}</p>
+          <div className="text-sm text-neutral-200 whitespace-pre-wrap leading-relaxed space-y-1">
+            {message.content}
+          </div>
 
-          {/* Tool calls */}
-          {message.tool_calls && message.tool_calls.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {message.tool_calls.map((tc, i) => (
-                <ToolCallCard key={i} call={tc} />
-              ))}
-            </div>
-          )}
+          {/* Audit & Evidence footer — only shown if backend tools were executed */}
+          {hasTools && (
+            <div className="mt-4 pt-3 border-t border-neutral-800">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  {message.verified !== false ? (
+                    <>
+                      <ShieldCheck className="h-4 w-4 text-green-500" />
+                      <span className="text-xs text-green-400 font-medium">Verified ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-4 w-4 text-red-500" />
+                      <span className="text-xs text-red-400 font-medium">Unverified ⚠</span>
+                    </>
+                  )}
+                  <span className="text-xs text-neutral-500">•</span>
+                  <span className="text-xs text-neutral-400">
+                    {message.tool_calls!.length} backend {message.tool_calls!.length === 1 ? 'tool' : 'tools'} executed
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDetails(!showDetails)}
+                  className="text-xs font-mono text-neutral-400 hover:text-white underline decoration-neutral-700 underline-offset-4 transition-colors"
+                >
+                  {showDetails ? '[Hide execution details]' : '[View execution details]'}
+                </button>
+              </div>
 
-          {/* Verification */}
-          {message.verified !== undefined && (
-            <div className="mt-3 flex items-center gap-2 pt-3 border-t border-neutral-800">
-              {message.verified ? (
-                <>
-                  <ShieldCheck className="h-4 w-4 text-green-500" />
-                  <span className="text-xs text-green-500 font-medium">Verified — all claims backed by evidence</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-xs text-red-500 font-medium">Verification failed — unverified claims</span>
-                </>
+              {showDetails && (
+                <div className="mt-3 space-y-2 pt-2 border-t border-neutral-800/60">
+                  {message.tool_calls!.map((tc, i) => (
+                    <ToolCallCard key={i} call={tc} />
+                  ))}
+                  {message.evidence_ids && message.evidence_ids.length > 0 && (
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap pt-1">
+                      <span className="text-[10px] text-neutral-500">Verified evidence:</span>
+                      {message.evidence_ids.map((eid) => (
+                        <span key={eid} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                          {eid}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-
-          {/* Evidence */}
-          {message.evidence_ids && message.evidence_ids.length > 0 && (
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              {message.evidence_ids.map((eid) => (
-                <span key={eid} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400">
-                  {eid}
-                </span>
-              ))}
             </div>
           )}
         </div>

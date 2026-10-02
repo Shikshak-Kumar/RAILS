@@ -195,20 +195,27 @@ export const api = {
   },
 
 
-  chatWithCopilot: async (message: string, intent?: string, account_id?: string, transaction_id?: string) => {
+  chatWithCopilot: async (
+    message: string,
+    intent?: string,
+    account_id?: string,
+    transaction_id?: string,
+    conversation_id?: string,
+  ) => {
     const payload: Record<string, any> = { message };
     if (intent) payload.intent = intent;
     if (account_id) payload.account_id = account_id;
     if (transaction_id) payload.transaction_id = transaction_id;
+    if (conversation_id) payload.conversation_id = conversation_id;
 
-    const res = await fetcher('/copilot/chat', {
+    const res = await fetcher('/copilot/query', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
 
     return {
       ...res,
-      content: res.answer || res.content || '',
+      content: res.response || res.answer || res.content || '',
       tool_calls: (res.tool_calls || []).map((tc: any) => ({
         tool_name: tc.tool || tc.tool_name || 'tool',
         arguments: tc.arguments || tc.args || {},

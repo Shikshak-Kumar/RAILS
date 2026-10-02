@@ -88,8 +88,12 @@ class SimulationService:
                 amount = round(random.uniform(25.0, 450.0), 2)
                 tx_type = random.choice(['ACH', 'DEBIT', 'TRANSFER'])
                 sender_history = [
-                    {'transaction_id': f"hist-{j}", 'sender_id': sender, 'receiver_id': f"acc-{j}", 'amount': round(random.uniform(50.0, 300.0), 2), 'timestamp': tx_time - timedelta(days=j + 1)}
-                    for j in range(5)
+                    {'transaction_id': f"dep-1", 'sender_id': 'EMPLOYER_PAYROLL', 'receiver_id': sender, 'amount': 3500.0, 'timestamp': tx_time - timedelta(days=5)},
+                    {'transaction_id': f"hist-1", 'sender_id': sender, 'receiver_id': 'UTILITY_CORP', 'amount': 120.0, 'timestamp': tx_time - timedelta(days=4)},
+                    {'transaction_id': f"hist-2", 'sender_id': sender, 'receiver_id': receiver, 'amount': round(random.uniform(30.0, 100.0), 2), 'timestamp': tx_time - timedelta(days=2)},
+                ]
+                pair_history = [
+                    {'transaction_id': f"pair-1", 'sender_id': sender, 'receiver_id': receiver, 'amount': 85.0, 'timestamp': tx_time - timedelta(days=2)},
                 ]
 
             elif scenario_type == 'high_velocity':
@@ -200,7 +204,11 @@ class SimulationService:
                 'risk_score': assessment.risk_score,
                 'fraud_probability': assessment.fraud_probability,
                 'anomaly_score': assessment.anomaly_score,
+                'account_risk_score': assessment.account_risk_score,
+                'overall_score': assessment.overall_score or assessment.risk_score,
                 'signals': assessment.signals,
+                'risk_drivers': assessment.risk_drivers,
+                'rule_results': assessment.rule_results,
                 'explanation': assessment.explanation,
                 'evidence_ids': assessment.evidence_ids,
             })

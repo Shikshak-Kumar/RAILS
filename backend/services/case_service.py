@@ -62,7 +62,14 @@ class CaseService:
             'signals': [],
         }
 
-    def list_cases(self, *, status: str | None = None, search: str | None = None) -> list[dict[str, Any]]:
+    def list_cases(
+        self,
+        *,
+        status: str | None = None,
+        search: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
         try:
             with get_write_connection() as conn:
                 from psycopg.rows import dict_row
@@ -78,7 +85,8 @@ class CaseService:
                         params.extend([f"%{search}%", f"%{search}%"])
                     if clauses:
                         query += " WHERE " + " AND ".join(clauses)
-                    query += " ORDER BY created_at DESC"
+                    query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+                    params.extend([limit, offset])
                     cur.execute(query, tuple(params))
                     rows = cur.fetchall()
                     return [self._format_case(dict(row)) for row in rows]
@@ -90,7 +98,7 @@ class CaseService:
             if search:
                 s_lower = search.lower()
                 items = [c for c in items if s_lower in c['case_id'].lower() or s_lower in c['summary'].lower()]
-            return [self._format_case(c) for c in items]
+            return [self._format_case(c) for c in items[offset: offset + limit]]
 
     def create_case(
         self,
