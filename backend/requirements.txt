@@ -1,0 +1,61 @@
+# RAILS Risk Sentinel — Backend Dependencies
+# Install with: pip install -r requirements.txt
+
+# ----------------------------
+# Web Framework & API
+# ----------------------------
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
+starlette==1.6.0
+
+# ----------------------------
+# Data Validation
+# ----------------------------
+pydantic==2.13.5
+pydantic-settings==2.15.0
+
+# ----------------------------
+# Database
+# ----------------------------
+psycopg[binary]==3.3.6
+SQLAlchemy==2.0.52
+alembic==1.19.1
+asyncpg==0.31.0
+pgvector==0.5.0
+
+# ----------------------------
+# ML / Data Science
+# ----------------------------
+numpy==2.5.3
+pandas==3.0.6
+scikit-learn==1.9.1
+scipy==1.18.1
+joblib==1.6.0
+lightgbm==4.7.0
+
+# ----------------------------
+# Document Generation
+# ----------------------------
+python-docx==1.2.0
+PyPDF2==3.0.1
+openpyxl==3.1.5
+
+# ----------------------------
+# HTTP & Networking
+# ----------------------------
+httpx==0.28.1
+
+# ----------------------------
+# Utilities
+# ----------------------------
+python-dotenv==1.2.3
+structlog==26.1.0
+PyYAML==6.0.3
+
+# ----------------------------
+# Dev / Testing
+# ----------------------------
+pytest==9.1.1
+pytest-asyncio==1.4.0
+respx==0.23.1

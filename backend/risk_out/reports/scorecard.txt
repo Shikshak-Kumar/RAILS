@@ -1,0 +1,33 @@
+
+==============================================================================
+RISK SENTINEL SCORECARD  (read this before trusting any number)
+==============================================================================
+
+[1] TRANSACTION FRAUD / AML  -- supervised, label = 'Is Laundering'
+    split        PR-AUC  ROC-AUC  precision  recall    F1   accuracy  P@100  R@500  lift-vs-random
+    train        0.0173   0.8322    0.0327  0.2378 0.0575    0.9946  0.010  0.069     24.8x
+    val          0.0935   0.9212    0.1644  0.3309 0.2197    0.9975  0.420  0.093     86.5x
+    test         0.1030   0.8256    0.1779  0.3699 0.2402    0.9959  0.140  0.032     58.2x
+    TEST base rate (share of true positives) = 0.00177  -> a model that says 'always legitimate' would score accuracy 0.9982 yet catch NOTHING.
+    => ACCURACY IS NOT THE RIGHT METRIC here. Judge by PR-AUC, recall, precision, P@K on TEST.
+    TRAIN row is on the training period (natural balance); a big train>>test gap means over-fitting.
+    Logistic-regression baseline TEST PR-AUC = 0.1255 (the selected model should beat it).
+    TEST confusion matrix @ HIGH threshold: TP=665 FP=3,074 FN=1,133 TN=1,011,010
+
+[2] ACCOUNT AML RISK  -- heuristic RISK SCORING (no account labels exist; not supervised)
+    Back-test (score from past history vs accounts touching labelled txns in the later TEST period):
+    PR-AUC=0.0073 vs random=0.0042 (lift 1.7x), P@100=0.020, P@500=0.014
+    This validates ranking quality of a heuristic. It is NOT a trained accuracy.
+
+[3] LIQUIDITY RISK  -- deterministic stress score
+    NO ground truth exists in a transaction ledger -> accuracy CANNOT be computed. Not a trained model.
+    Entities scored: 515080; level counts: {'LOW': 515077, 'MEDIUM': 3, 'HIGH': 0, 'CRITICAL': 0}
+
+[4] CREDIT RISK
+    Data used: SYNTHETIC data with ASSUMED default mechanism -> pipeline demonstration ONLY, metrics do NOT reflect real-world performance
+    The transaction dataset has no borrower/loan/default fields. This model is a pipeline DEMO on synthetic data;
+    its metrics say NOTHING about real credit risk. Provide a real credit CSV (Config.credit_csv) to get valid metrics.
+
+[+] ANOMALY DETECTOR -- unsupervised score (percentile), not a probability and not an accuracy claim.
+    Diagnostic only: TEST PR-AUC vs label = 0.0037 (random = 0.0018).
+==============================================================================

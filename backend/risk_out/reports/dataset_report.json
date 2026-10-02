@@ -1,0 +1,169 @@
+{
+  "file": "/content/HI-Small_Trans.csv",
+  "rows": 5078345,
+  "columns": [
+    "Timestamp",
+    "From Bank",
+    "Account",
+    "To Bank",
+    "Account.1",
+    "Amount Received",
+    "Receiving Currency",
+    "Amount Paid",
+    "Payment Currency",
+    "Payment Format",
+    "Is Laundering"
+  ],
+  "n_columns": 11,
+  "dtypes": {
+    "Timestamp": "object",
+    "From Bank": "int64",
+    "Account": "object",
+    "To Bank": "int64",
+    "Account.1": "object",
+    "Amount Received": "float64",
+    "Receiving Currency": "object",
+    "Amount Paid": "float64",
+    "Payment Currency": "object",
+    "Payment Format": "object",
+    "Is Laundering": "int64"
+  },
+  "missing": {
+    "Timestamp": 0,
+    "From Bank": 0,
+    "Account": 0,
+    "To Bank": 0,
+    "Account.1": 0,
+    "Amount Received": 0,
+    "Receiving Currency": 0,
+    "Amount Paid": 0,
+    "Payment Currency": 0,
+    "Payment Format": 0,
+    "Is Laundering": 0
+  },
+  "duplicate_rows": 9,
+  "unique_transaction_ids": "no id column mapped",
+  "unique_accounts": 515080,
+  "mapping": {
+    "receiver_id": "Account.1",
+    "sender_id": "Account",
+    "amount": "Amount Paid",
+    "timestamp": "Timestamp",
+    "label": "Is Laundering",
+    "transaction_id": null,
+    "transaction_type": "Payment Format",
+    "currency": "Payment Currency"
+  },
+  "truncated": false,
+  "numeric_summary": {
+    "min": {
+      "From Bank": 1.0,
+      "To Bank": 1.0,
+      "Amount Received": 1e-06,
+      "Amount Paid": 1e-06,
+      "Is Laundering": 0.0
+    },
+    "max": {
+      "From Bank": 356303.0,
+      "To Bank": 356294.0,
+      "Amount Received": 1046302363293.48,
+      "Amount Paid": 1046302363293.48,
+      "Is Laundering": 1.0
+    },
+    "mean": {
+      "From Bank": 45730.565728795504,
+      "To Bank": 65744.5628534493,
+      "Amount Received": 5988726.070072803,
+      "Amount Paid": 4509273.3677414,
+      "Is Laundering": 0.0010194266045335635
+    },
+    "median(approx)": {
+      "From Bank": 9587.0,
+      "To Bank": 21568.0,
+      "Amount Received": 1369.34,
+      "Amount Paid": 1373.745,
+      "Is Laundering": 0.0
+    }
+  },
+  "categorical_values": {
+    "Timestamp": ">50 distinct (high cardinality)",
+    "Account": ">50 distinct (high cardinality)",
+    "Account.1": ">50 distinct (high cardinality)",
+    "Receiving Currency": [
+      "Australian Dollar",
+      "Bitcoin",
+      "Brazil Real",
+      "Canadian Dollar",
+      "Euro",
+      "Mexican Peso",
+      "Ruble",
+      "Rupee",
+      "Saudi Riyal",
+      "Shekel",
+      "Swiss Franc",
+      "UK Pound",
+      "US Dollar",
+      "Yen",
+      "Yuan"
+    ],
+    "Payment Currency": [
+      "Australian Dollar",
+      "Bitcoin",
+      "Brazil Real",
+      "Canadian Dollar",
+      "Euro",
+      "Mexican Peso",
+      "Ruble",
+      "Rupee",
+      "Saudi Riyal",
+      "Shekel",
+      "Swiss Franc",
+      "UK Pound",
+      "US Dollar",
+      "Yen",
+      "Yuan"
+    ],
+    "Payment Format": [
+      "ACH",
+      "Bitcoin",
+      "Cash",
+      "Cheque",
+      "Credit Card",
+      "Reinvestment",
+      "Wire"
+    ]
+  },
+  "credit_columns_detected": {
+    "default_label": [],
+    "borrower_features": []
+  },
+  "balance_like_columns_excluded_from_features": [],
+  "label_available": true,
+  "label_column": "Is Laundering",
+  "dataset_version": "e9e8c7e0b47a",
+  "rows_dropped_invalid": 0,
+  "timestamp_min": "2022-09-01 00:00:00",
+  "timestamp_max": "2022-09-18 16:18:00",
+  "class_distribution": {
+    "0": 5073168,
+    "1": 5177
+  },
+  "pydantic_sample_errors": 0,
+  "periods": {
+    "train": [
+      "2022-09-01 00:00:00",
+      "2022-09-06 13:35:00",
+      3046861
+    ],
+    "validation": [
+      "2022-09-06 13:36:00",
+      "2022-09-08 16:11:00",
+      1015602
+    ],
+    "test": [
+      "2022-09-08 16:12:00",
+      "2022-09-18 16:18:00",
+      1015882
+    ]
+  }
+}

@@ -1,0 +1,76 @@
+INFO:     Started server process [41273]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:56367 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56368 - "GET /overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56369 - "GET /transactions?limit=3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56371 - "GET /transactions?limit=2&offset=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56374 - "GET /transactions/2928645 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56376 - "GET /transactions/nonexistent-tx-000 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56378 - "POST /transactions HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:56380 - "POST /transactions HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:56382 - "GET /risk/signals HTTP/1.1" 200 OK
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator SimpleImputer from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator FunctionTransformer from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator ExtraTreeRegressor from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator IsolationForest from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator Pipeline from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+INFO:     127.0.0.1:56383 - "GET /risk/accounts/808B1C350 HTTP/1.1" 200 OK
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator LabelEncoder from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator IsotonicRegression from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator SimpleImputer from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator FunctionTransformer from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator ExtraTreeRegressor from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator IsolationForest from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/Users/shikshakkumar/Downloads/development/RAILS/backend/venv/lib/python3.14/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator Pipeline from version 1.6.1 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+INFO:     127.0.0.1:56384 - "GET /risk/transactions/2928645 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56390 - "POST /risk/transactions/2928645/analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56394 - "GET /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56396 - "POST /cases?summary=Audit+Test+Case&status=OPEN HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /cases/case-67773308 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56400 - "PATCH /cases/case-67773308 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56403 - "PATCH /cases/case-67773308 HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:56405 - "PATCH /cases/case-67773308 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56408 - "PATCH /cases/case-67773308 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56411 - "GET /cases/case-does-not-exist-xyz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56413 - "PATCH /cases/case-does-not-exist-xyz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56415 - "POST /copilot/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56416 - "POST /copilot/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56417 - "POST /copilot/chat HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:56418 - "POST /copilot/chat HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:56419 - "POST /copilot/chat HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:56420 - "POST /copilot/chat HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:56421 - "GET /regulatory/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56422 - "POST /reports/generate?title=TestReport&body=AutomatedAudit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56423 - "POST /simulation/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56424 - "POST /simulation/transaction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56425 - "POST /simulation/liquidity HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [41273]

@@ -1,0 +1,1 @@
+["in_cnt", "out_cnt", "in_amt", "out_amt", "net_flow", "uniq_senders", "uniq_receivers", "avg_amt", "median_amt", "std_log_amt", "txn_per_day", "max_share_out", "max_share_in", "pass_through", "rapid_out_frac", "fan_in_ratio", "fan_out_ratio"]

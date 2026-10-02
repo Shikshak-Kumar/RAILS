@@ -1,0 +1,53 @@
+{
+  "model_name": "anomaly_model",
+  "model_version": "v20261002074147",
+  "schema_version": "1.0.0",
+  "training_date": "2026-10-02T07:41:47.756945+00:00",
+  "dataset_version": "e9e8c7e0b47a",
+  "features": [
+    "log_amount",
+    "s_cnt_1h",
+    "s_cnt_24h",
+    "s_amt_24h",
+    "s_amt_z",
+    "s_hist_cnt",
+    "r_hist_cnt",
+    "r_in_cnt_24h",
+    "s_out_deg",
+    "r_in_deg",
+    "pair_hist_cnt",
+    "s_inflow_24h",
+    "pass_through_24h",
+    "s_secs_since_last",
+    "is_new_pair"
+  ],
+  "metrics": {
+    "note": "unsupervised; score is a percentile vs train distribution, NOT a probability",
+    "diagnostic_vs_label_test": {
+      "n": 500000,
+      "n_pos": 882,
+      "base_rate": 0.001764,
+      "pr_auc": 0.003652468588358476,
+      "lift_vs_random": 2.070560424239499,
+      "roc_auc": 0.747648668577902,
+      "precision@50": 0.0,
+      "recall@50": 0.0,
+      "precision@100": 0.0,
+      "recall@100": 0.0,
+      "precision@500": 0.0,
+      "recall@500": 0.0,
+      "brier": 0.5641136486884993
+    }
+  },
+  "thresholds": {
+    "medium": 0.95,
+    "high": 0.99,
+    "critical": 0.999
+  },
+  "scoring_method": "unsupervised_anomaly",
+  "training_period": [
+    "2022-09-01 00:00:00",
+    "2022-09-06 13:35:00"
+  ],
+  "description": "IsolationForest on behavioural features. Output is anomaly_score, never fraud probability."
+}

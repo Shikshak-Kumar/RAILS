@@ -1,0 +1,155 @@
+{
+  "model_name": "credit_model",
+  "model_version": "v20261002074230",
+  "schema_version": "1.0.0",
+  "training_date": "2026-10-02T07:42:30.334384+00:00",
+  "dataset_version": "e9e8c7e0b47a-synthetic",
+  "features": [
+    "loan_amount",
+    "outstanding_amount",
+    "annual_income",
+    "monthly_debt_payment",
+    "credit_utilization",
+    "delinquencies_12m",
+    "on_time_payment_ratio",
+    "tenure_months",
+    "debt_to_income",
+    "outstanding_ratio"
+  ],
+  "metrics": {
+    "best_model": "logistic_regression",
+    "val_pr_auc_by_model": {
+      "logistic_regression": 0.49799075911167945,
+      "lightgbm": 0.46693093749750003
+    },
+    "thresholds": {
+      "medium": 0.2628398791540785,
+      "high": 0.2727272727272727,
+      "critical": 0.4274193548387097
+    },
+    "calibrated": true,
+    "pos_weight": 2.1595576619273302,
+    "models": {
+      "logistic_regression": {
+        "val": {
+          "n": 4000,
+          "n_pos": 1266,
+          "base_rate": 0.3165,
+          "pr_auc": 0.49142494404125003,
+          "lift_vs_random": 1.552685447207741,
+          "roc_auc": 0.6963519474501076,
+          "precision@50": 0.72,
+          "recall@50": 0.02843601895734597,
+          "precision@100": 0.73,
+          "recall@100": 0.05766192733017378,
+          "precision@500": 0.598,
+          "recall@500": 0.23617693522906794,
+          "brier": 0.19338580553092355,
+          "threshold": 0.2727272727272727,
+          "precision": 0.43685503685503685,
+          "recall": 0.7022116903633492,
+          "accuracy": 0.61925,
+          "f1": 0.5386246591941836,
+          "confusion_matrix": {
+            "tn": 1588,
+            "fp": 1146,
+            "fn": 377,
+            "tp": 889
+          }
+        },
+        "test": {
+          "n": 4000,
+          "n_pos": 1266,
+          "base_rate": 0.3165,
+          "pr_auc": 0.4956128740746892,
+          "lift_vs_random": 1.5659174536325093,
+          "roc_auc": 0.6911642172583038,
+          "precision@50": 0.74,
+          "recall@50": 0.029225908372827805,
+          "precision@100": 0.72,
+          "recall@100": 0.05687203791469194,
+          "precision@500": 0.614,
+          "recall@500": 0.2424960505529226,
+          "brier": 0.19426446494695995,
+          "threshold": 0.2727272727272727,
+          "precision": 0.4459251665812404,
+          "recall": 0.6872037914691943,
+          "accuracy": 0.63075,
+          "f1": 0.5408765930991607,
+          "confusion_matrix": {
+            "tn": 1653,
+            "fp": 1081,
+            "fn": 396,
+            "tp": 870
+          }
+        },
+        "selected": true
+      },
+      "lightgbm": {
+        "val": {
+          "n": 4000,
+          "n_pos": 1266,
+          "base_rate": 0.3165,
+          "pr_auc": 0.46693093749750003,
+          "lift_vs_random": 1.4752952211611374,
+          "roc_auc": 0.6663708192776933,
+          "precision@50": 0.68,
+          "recall@50": 0.026856240126382307,
+          "precision@100": 0.63,
+          "recall@100": 0.04976303317535545,
+          "precision@500": 0.546,
+          "recall@500": 0.2156398104265403,
+          "brier": 0.20949090737749546
+        },
+        "test": {
+          "n": 4000,
+          "n_pos": 1266,
+          "base_rate": 0.3165,
+          "pr_auc": 0.48661233522423375,
+          "lift_vs_random": 1.5374797321460782,
+          "roc_auc": 0.6736394487068811,
+          "precision@50": 0.64,
+          "recall@50": 0.02527646129541864,
+          "precision@100": 0.62,
+          "recall@100": 0.04897314375987362,
+          "precision@500": 0.586,
+          "recall@500": 0.23143759873617695,
+          "brier": 0.20828612611535205
+        },
+        "selected": false
+      }
+    },
+    "calibration_test": {
+      "frac_pos": [
+        0.14166666666666666,
+        0.17577197149643706,
+        0.19438444924406048,
+        0.23976608187134502,
+        0.3403693931398417,
+        0.36319612590799033,
+        0.42272727272727273,
+        0.49891540130151846,
+        0.6756756756756757
+      ],
+      "mean_pred": [
+        0.09438414079243553,
+        0.16876574307304737,
+        0.20529801324503183,
+        0.2628398791540784,
+        0.298085229213204,
+        0.3700824386342291,
+        0.4220117112434289,
+        0.482817821082987,
+        0.6551188876510476
+      ]
+    }
+  },
+  "thresholds": {
+    "medium": 0.2628398791540785,
+    "high": 0.2727272727272727,
+    "critical": 0.4274193548387097
+  },
+  "scoring_method": "synthetic_demo_model",
+  "data_source": "SYNTHETIC data with ASSUMED default mechanism -> pipeline demonstration ONLY, metrics do NOT reflect real-world performance",
+  "description": "SYNTHETIC data with ASSUMED default mechanism -> pipeline demonstration ONLY, metrics do NOT reflect real-world performance"
+}

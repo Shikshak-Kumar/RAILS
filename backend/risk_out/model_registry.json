@@ -1,0 +1,523 @@
+{
+  "models": [
+    {
+      "model_name": "fraud_model",
+      "model_version": "v20261002074137",
+      "training_date": "2026-10-02T07:41:38.024045+00:00",
+      "features": [
+        "amount",
+        "log_amount",
+        "hour",
+        "day_of_week",
+        "is_weekend",
+        "is_night",
+        "type_code",
+        "currency_code",
+        "is_self_transfer",
+        "s_cnt_5m",
+        "s_cnt_1h",
+        "s_cnt_24h",
+        "s_amt_1h",
+        "s_amt_24h",
+        "s_hist_cnt",
+        "s_hist_mean_log",
+        "s_hist_std_log",
+        "s_amt_ratio",
+        "s_amt_z",
+        "s_secs_since_last",
+        "r_hist_cnt",
+        "r_hist_mean_log",
+        "r_amt_ratio",
+        "r_in_cnt_1h",
+        "r_in_cnt_24h",
+        "s_out_deg",
+        "s_in_deg",
+        "r_in_deg",
+        "r_out_deg",
+        "s_fanout_ratio",
+        "r_fanin_ratio",
+        "is_new_pair",
+        "pair_hist_cnt",
+        "pair_share",
+        "reverse_pair_cnt",
+        "s_inflow_1h",
+        "s_inflow_24h",
+        "pass_through_24h",
+        "rapid_move_flag"
+      ],
+      "metrics": {
+        "best_model": "lightgbm",
+        "val_pr_auc_by_model": {
+          "logistic_regression": 0.07551738352836267,
+          "lightgbm": 0.09488756075476218
+        },
+        "thresholds": {
+          "medium": 0.0017118993359575188,
+          "high": 0.13246268656716417,
+          "critical": 0.1561789234268385
+        },
+        "calibrated": true,
+        "pos_weight": 50.0,
+        "models": {
+          "logistic_regression": {
+            "val": {
+              "n": 1000000,
+              "n_pos": 1082,
+              "base_rate": 0.001082,
+              "pr_auc": 0.07551738352836267,
+              "lift_vs_random": 69.79425464728527,
+              "roc_auc": 0.9795440903656647,
+              "precision@50": 0.1,
+              "recall@50": 0.0046210720887245845,
+              "precision@100": 0.07,
+              "recall@100": 0.006469500924214418,
+              "precision@500": 0.098,
+              "recall@500": 0.04528650646950092,
+              "brier": 0.030671664052441493
+            },
+            "test": {
+              "n": 1015882,
+              "n_pos": 1798,
+              "base_rate": 0.0017698905975300282,
+              "pr_auc": 0.12550913482479018,
+              "lift_vs_random": 70.91349883430338,
+              "roc_auc": 0.9833901412594014,
+              "precision@50": 0.14,
+              "recall@50": 0.00389321468298109,
+              "precision@100": 0.09,
+              "recall@100": 0.005005561735261402,
+              "precision@500": 0.132,
+              "recall@500": 0.03670745272525028,
+              "brier": 0.02753829248527321
+            },
+            "selected": false,
+            "train": {
+              "n": 500000,
+              "n_pos": 349,
+              "base_rate": 0.000698,
+              "pr_auc": 0.05897298085993,
+              "lift_vs_random": 84.4885112606447,
+              "roc_auc": 0.9792355178527792,
+              "precision@50": 0.08,
+              "recall@50": 0.011461318051575931,
+              "precision@100": 0.08,
+              "recall@100": 0.022922636103151862,
+              "precision@500": 0.112,
+              "recall@500": 0.16045845272206305,
+              "brier": 0.07023148355436298
+            }
+          },
+          "lightgbm": {
+            "val": {
+              "n": 1000000,
+              "n_pos": 1082,
+              "base_rate": 0.001082,
+              "pr_auc": 0.09354324839626993,
+              "lift_vs_random": 86.45401885052674,
+              "roc_auc": 0.9211623880920856,
+              "precision@50": 0.42,
+              "recall@50": 0.019408502772643253,
+              "precision@100": 0.42,
+              "recall@100": 0.038817005545286505,
+              "precision@500": 0.202,
+              "recall@500": 0.0933456561922366,
+              "brier": 0.0010045914374575509,
+              "threshold": 0.13246268656716417,
+              "precision": 0.16444648598989434,
+              "recall": 0.33086876155268025,
+              "accuracy": 0.997457,
+              "f1": 0.21969929426204354,
+              "confusion_matrix": {
+                "tn": 997099,
+                "fp": 1819,
+                "fn": 724,
+                "tp": 358
+              }
+            },
+            "test": {
+              "n": 1015882,
+              "n_pos": 1798,
+              "base_rate": 0.0017698905975300282,
+              "pr_auc": 0.10297193064997946,
+              "lift_vs_random": 58.17982806037955,
+              "roc_auc": 0.8256111794676216,
+              "precision@50": 0.12,
+              "recall@50": 0.0033370411568409346,
+              "precision@100": 0.14,
+              "recall@100": 0.00778642936596218,
+              "precision@500": 0.114,
+              "recall@500": 0.03170189098998888,
+              "brier": 0.00164416267891175,
+              "threshold": 0.13246268656716417,
+              "precision": 0.17785504145493447,
+              "recall": 0.36985539488320357,
+              "accuracy": 0.995858770998994,
+              "f1": 0.24020227560050572,
+              "confusion_matrix": {
+                "tn": 1011010,
+                "fp": 3074,
+                "fn": 1133,
+                "tp": 665
+              }
+            },
+            "selected": true,
+            "train": {
+              "n": 500000,
+              "n_pos": 349,
+              "base_rate": 0.000698,
+              "pr_auc": 0.0173000416950042,
+              "lift_vs_random": 24.785160021495983,
+              "roc_auc": 0.832209360643758,
+              "precision@50": 0.0,
+              "recall@50": 0.0,
+              "precision@100": 0.01,
+              "recall@100": 0.0028653295128939827,
+              "precision@500": 0.048,
+              "recall@500": 0.06876790830945559,
+              "brier": 0.0008334806026051444,
+              "threshold": 0.13246268656716417,
+              "precision": 0.03269003544702639,
+              "recall": 0.23782234957020057,
+              "accuracy": 0.994556,
+              "f1": 0.0574792243767313,
+              "confusion_matrix": {
+                "tn": 497195,
+                "fp": 2456,
+                "fn": 266,
+                "tp": 83
+              }
+            }
+          }
+        },
+        "calibration_test": {
+          "frac_pos": [
+            0.0005684201642709453,
+            0.001455884556918663,
+            0.001991586941145814,
+            0.10675005391416864
+          ],
+          "mean_pred": [
+            0.00013001878306897072,
+            0.0017017487730028283,
+            0.006214287595114295,
+            0.09190563211749926
+          ]
+        }
+      },
+      "dataset_version": "e9e8c7e0b47a",
+      "thresholds": {
+        "medium": 0.0017118993359575188,
+        "high": 0.13246268656716417,
+        "critical": 0.1561789234268385
+      },
+      "path": "/content/risk_out/models/fraud_model/v20261002074137/pipeline.joblib",
+      "scoring_method": "supervised_classifier"
+    },
+    {
+      "model_name": "anomaly_model",
+      "model_version": "v20261002074147",
+      "training_date": "2026-10-02T07:41:47.756945+00:00",
+      "features": [
+        "log_amount",
+        "s_cnt_1h",
+        "s_cnt_24h",
+        "s_amt_24h",
+        "s_amt_z",
+        "s_hist_cnt",
+        "r_hist_cnt",
+        "r_in_cnt_24h",
+        "s_out_deg",
+        "r_in_deg",
+        "pair_hist_cnt",
+        "s_inflow_24h",
+        "pass_through_24h",
+        "s_secs_since_last",
+        "is_new_pair"
+      ],
+      "metrics": {
+        "note": "unsupervised; score is a percentile vs train distribution, NOT a probability",
+        "diagnostic_vs_label_test": {
+          "n": 500000,
+          "n_pos": 882,
+          "base_rate": 0.001764,
+          "pr_auc": 0.003652468588358476,
+          "lift_vs_random": 2.070560424239499,
+          "roc_auc": 0.747648668577902,
+          "precision@50": 0.0,
+          "recall@50": 0.0,
+          "precision@100": 0.0,
+          "recall@100": 0.0,
+          "precision@500": 0.0,
+          "recall@500": 0.0,
+          "brier": 0.5641136486884993
+        }
+      },
+      "dataset_version": "e9e8c7e0b47a",
+      "thresholds": {
+        "medium": 0.95,
+        "high": 0.99,
+        "critical": 0.999
+      },
+      "path": "/content/risk_out/models/anomaly_model/v20261002074147/pipeline.joblib",
+      "scoring_method": "unsupervised_anomaly"
+    },
+    {
+      "model_name": "account_risk_model",
+      "model_version": "v20261002074216",
+      "training_date": "2026-10-02T07:42:16.658523+00:00",
+      "features": [
+        "in_cnt",
+        "out_cnt",
+        "in_amt",
+        "out_amt",
+        "net_flow",
+        "uniq_senders",
+        "uniq_receivers",
+        "avg_amt",
+        "median_amt",
+        "std_log_amt",
+        "txn_per_day",
+        "max_share_out",
+        "max_share_in",
+        "pass_through",
+        "rapid_out_frac",
+        "fan_in_ratio",
+        "fan_out_ratio"
+      ],
+      "metrics": {
+        "n_accounts_scored": 513888,
+        "method": "heuristic risk scoring + IsolationForest",
+        "backtest_vs_future_labels": {
+          "n": 513888,
+          "n_pos": 2155,
+          "base_rate": 0.004193520767171057,
+          "pr_auc": 0.007267431637888309,
+          "lift_vs_random": 1.733014343169906,
+          "roc_auc": 0.6585583287267748,
+          "precision@50": 0.04,
+          "recall@50": 0.0009280742459396752,
+          "precision@100": 0.02,
+          "recall@100": 0.0009280742459396752,
+          "precision@500": 0.014,
+          "recall@500": 0.0032482598607888632,
+          "brier": 0.20806149147211192
+        },
+        "backtest_note": "Scores use history <= end of validation; 'positive' = account touched a labelled transaction in the TEST period. Validation of a heuristic, not training."
+      },
+      "dataset_version": "e9e8c7e0b47a",
+      "thresholds": {
+        "medium": 0.6546528796742115,
+        "high": 0.7502225527317472,
+        "critical": 0.8320629937666879
+      },
+      "path": "/content/risk_out/models/account_risk_model/v20261002074216/pipeline.joblib",
+      "scoring_method": "risk_scoring_heuristic"
+    },
+    {
+      "model_name": "liquidity_model",
+      "model_version": "v20261002074229",
+      "training_date": "2026-10-02T07:42:29.239230+00:00",
+      "features": [
+        "in_1h",
+        "out_1h",
+        "net_1h",
+        "in_24h",
+        "out_24h",
+        "net_24h",
+        "in_7d",
+        "out_7d",
+        "net_7d",
+        "io_ratio_24h",
+        "outflow_spike",
+        "net_vol_daily",
+        "net_z_24h",
+        "funding_hhi_7d",
+        "withdrawal_pressure",
+        "sudden_outflow",
+        "cum_net_proxy",
+        "baseline_days"
+      ],
+      "metrics": {
+        "approach": "deterministic stress score (no liquidity label exists; not a trained model)",
+        "n_entities": 515080,
+        "stress_score_distribution": {
+          "count": 515080.0,
+          "mean": 0.0118,
+          "std": 0.0183,
+          "min": 0.0,
+          "50%": 0.0,
+          "90%": 0.0453,
+          "99%": 0.0654,
+          "max": 0.4203
+        },
+        "level_counts": {
+          "LOW": 515077,
+          "MEDIUM": 3,
+          "HIGH": 0,
+          "CRITICAL": 0
+        }
+      },
+      "dataset_version": "e9e8c7e0b47a",
+      "thresholds": {
+        "medium": 0.35,
+        "high": 0.55,
+        "critical": 0.75
+      },
+      "path": "/content/risk_out/models/liquidity_model/v20261002074229/pipeline.joblib",
+      "scoring_method": "deterministic_stress_score"
+    },
+    {
+      "model_name": "credit_model",
+      "model_version": "v20261002074230",
+      "training_date": "2026-10-02T07:42:30.334384+00:00",
+      "features": [
+        "loan_amount",
+        "outstanding_amount",
+        "annual_income",
+        "monthly_debt_payment",
+        "credit_utilization",
+        "delinquencies_12m",
+        "on_time_payment_ratio",
+        "tenure_months",
+        "debt_to_income",
+        "outstanding_ratio"
+      ],
+      "metrics": {
+        "best_model": "logistic_regression",
+        "val_pr_auc_by_model": {
+          "logistic_regression": 0.49799075911167945,
+          "lightgbm": 0.46693093749750003
+        },
+        "thresholds": {
+          "medium": 0.2628398791540785,
+          "high": 0.2727272727272727,
+          "critical": 0.4274193548387097
+        },
+        "calibrated": true,
+        "pos_weight": 2.1595576619273302,
+        "models": {
+          "logistic_regression": {
+            "val": {
+              "n": 4000,
+              "n_pos": 1266,
+              "base_rate": 0.3165,
+              "pr_auc": 0.49142494404125003,
+              "lift_vs_random": 1.552685447207741,
+              "roc_auc": 0.6963519474501076,
+              "precision@50": 0.72,
+              "recall@50": 0.02843601895734597,
+              "precision@100": 0.73,
+              "recall@100": 0.05766192733017378,
+              "precision@500": 0.598,
+              "recall@500": 0.23617693522906794,
+              "brier": 0.19338580553092355,
+              "threshold": 0.2727272727272727,
+              "precision": 0.43685503685503685,
+              "recall": 0.7022116903633492,
+              "accuracy": 0.61925,
+              "f1": 0.5386246591941836,
+              "confusion_matrix": {
+                "tn": 1588,
+                "fp": 1146,
+                "fn": 377,
+                "tp": 889
+              }
+            },
+            "test": {
+              "n": 4000,
+              "n_pos": 1266,
+              "base_rate": 0.3165,
+              "pr_auc": 0.4956128740746892,
+              "lift_vs_random": 1.5659174536325093,
+              "roc_auc": 0.6911642172583038,
+              "precision@50": 0.74,
+              "recall@50": 0.029225908372827805,
+              "precision@100": 0.72,
+              "recall@100": 0.05687203791469194,
+              "precision@500": 0.614,
+              "recall@500": 0.2424960505529226,
+              "brier": 0.19426446494695995,
+              "threshold": 0.2727272727272727,
+              "precision": 0.4459251665812404,
+              "recall": 0.6872037914691943,
+              "accuracy": 0.63075,
+              "f1": 0.5408765930991607,
+              "confusion_matrix": {
+                "tn": 1653,
+                "fp": 1081,
+                "fn": 396,
+                "tp": 870
+              }
+            },
+            "selected": true
+          },
+          "lightgbm": {
+            "val": {
+              "n": 4000,
+              "n_pos": 1266,
+              "base_rate": 0.3165,
+              "pr_auc": 0.46693093749750003,
+              "lift_vs_random": 1.4752952211611374,
+              "roc_auc": 0.6663708192776933,
+              "precision@50": 0.68,
+              "recall@50": 0.026856240126382307,
+              "precision@100": 0.63,
+              "recall@100": 0.04976303317535545,
+              "precision@500": 0.546,
+              "recall@500": 0.2156398104265403,
+              "brier": 0.20949090737749546
+            },
+            "test": {
+              "n": 4000,
+              "n_pos": 1266,
+              "base_rate": 0.3165,
+              "pr_auc": 0.48661233522423375,
+              "lift_vs_random": 1.5374797321460782,
+              "roc_auc": 0.6736394487068811,
+              "precision@50": 0.64,
+              "recall@50": 0.02527646129541864,
+              "precision@100": 0.62,
+              "recall@100": 0.04897314375987362,
+              "precision@500": 0.586,
+              "recall@500": 0.23143759873617695,
+              "brier": 0.20828612611535205
+            },
+            "selected": false
+          }
+        },
+        "calibration_test": {
+          "frac_pos": [
+            0.14166666666666666,
+            0.17577197149643706,
+            0.19438444924406048,
+            0.23976608187134502,
+            0.3403693931398417,
+            0.36319612590799033,
+            0.42272727272727273,
+            0.49891540130151846,
+            0.6756756756756757
+          ],
+          "mean_pred": [
+            0.09438414079243553,
+            0.16876574307304737,
+            0.20529801324503183,
+            0.2628398791540784,
+            0.298085229213204,
+            0.3700824386342291,
+            0.4220117112434289,
+            0.482817821082987,
+            0.6551188876510476
+          ]
+        }
+      },
+      "dataset_version": "e9e8c7e0b47a-synthetic",
+      "thresholds": {
+        "medium": 0.2628398791540785,
+        "high": 0.2727272727272727,
+        "critical": 0.4274193548387097
+      },
+      "path": "/content/risk_out/models/credit_model/v20261002074230/pipeline.joblib",
+      "scoring_method": "synthetic_demo_model"
+    }
+  ]
+}

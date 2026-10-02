@@ -1,0 +1,53 @@
+{
+  "model_name": "account_risk_model",
+  "model_version": "v20261002074216",
+  "schema_version": "1.0.0",
+  "training_date": "2026-10-02T07:42:16.658523+00:00",
+  "dataset_version": "e9e8c7e0b47a",
+  "features": [
+    "in_cnt",
+    "out_cnt",
+    "in_amt",
+    "out_amt",
+    "net_flow",
+    "uniq_senders",
+    "uniq_receivers",
+    "avg_amt",
+    "median_amt",
+    "std_log_amt",
+    "txn_per_day",
+    "max_share_out",
+    "max_share_in",
+    "pass_through",
+    "rapid_out_frac",
+    "fan_in_ratio",
+    "fan_out_ratio"
+  ],
+  "metrics": {
+    "n_accounts_scored": 513888,
+    "method": "heuristic risk scoring + IsolationForest",
+    "backtest_vs_future_labels": {
+      "n": 513888,
+      "n_pos": 2155,
+      "base_rate": 0.004193520767171057,
+      "pr_auc": 0.007267431637888309,
+      "lift_vs_random": 1.733014343169906,
+      "roc_auc": 0.6585583287267748,
+      "precision@50": 0.04,
+      "recall@50": 0.0009280742459396752,
+      "precision@100": 0.02,
+      "recall@100": 0.0009280742459396752,
+      "precision@500": 0.014,
+      "recall@500": 0.0032482598607888632,
+      "brier": 0.20806149147211192
+    },
+    "backtest_note": "Scores use history <= end of validation; 'positive' = account touched a labelled transaction in the TEST period. Validation of a heuristic, not training."
+  },
+  "thresholds": {
+    "medium": 0.6546528796742115,
+    "high": 0.7502225527317472,
+    "critical": 0.8320629937666879
+  },
+  "scoring_method": "risk_scoring_heuristic",
+  "description": "RISK SCORING (not supervised prediction): no account-level labels exist. Risk levels are rank-based (p90/p98/p99.8 of the reference population)."
+}

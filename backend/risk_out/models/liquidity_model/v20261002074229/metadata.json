@@ -1,0 +1,54 @@
+{
+  "model_name": "liquidity_model",
+  "model_version": "v20261002074229",
+  "schema_version": "1.0.0",
+  "training_date": "2026-10-02T07:42:29.239230+00:00",
+  "dataset_version": "e9e8c7e0b47a",
+  "features": [
+    "in_1h",
+    "out_1h",
+    "net_1h",
+    "in_24h",
+    "out_24h",
+    "net_24h",
+    "in_7d",
+    "out_7d",
+    "net_7d",
+    "io_ratio_24h",
+    "outflow_spike",
+    "net_vol_daily",
+    "net_z_24h",
+    "funding_hhi_7d",
+    "withdrawal_pressure",
+    "sudden_outflow",
+    "cum_net_proxy",
+    "baseline_days"
+  ],
+  "metrics": {
+    "approach": "deterministic stress score (no liquidity label exists; not a trained model)",
+    "n_entities": 515080,
+    "stress_score_distribution": {
+      "count": 515080.0,
+      "mean": 0.0118,
+      "std": 0.0183,
+      "min": 0.0,
+      "50%": 0.0,
+      "90%": 0.0453,
+      "99%": 0.0654,
+      "max": 0.4203
+    },
+    "level_counts": {
+      "LOW": 515077,
+      "MEDIUM": 3,
+      "HIGH": 0,
+      "CRITICAL": 0
+    }
+  },
+  "thresholds": {
+    "medium": 0.35,
+    "high": 0.55,
+    "critical": 0.75
+  },
+  "scoring_method": "deterministic_stress_score",
+  "description": "Rule-based liquidity stress score at account/entity level. Weights/thresholds are policy settings to be calibrated by Treasury/ALM; not learned from data."
+}
