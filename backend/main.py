@@ -16,6 +16,7 @@ from backend.api.cases import router as cases_router
 from backend.api.copilot import router as copilot_router
 from backend.api.executions import router as executions_router
 from backend.api.reports import router as reports_router
+from backend.api.evidence import router as evidence_router
 from backend.api.risk import router as risk_router
 from backend.api.transactions import router as transactions_router
 from backend.db.repositories.alert_repository import alert_repository
@@ -42,6 +43,7 @@ app.include_router(alerts_router)
 app.include_router(cases_router)
 app.include_router(reports_router)
 app.include_router(copilot_router)
+app.include_router(evidence_router)
 app.include_router(executions_router)
 
 

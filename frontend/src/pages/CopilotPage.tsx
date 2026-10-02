@@ -3,6 +3,11 @@ import { Send, ShieldCheck, AlertCircle, FileText, Zap, Loader2, CheckCircle2, C
 import type { ChatMessage, ToolCall } from '@/types';
 import { api } from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+// Defensive handling for possible default export variations
+const remarkPlugin = (remarkGfm as any)?.default ?? remarkGfm;
 
 const quickPrompts = [
   'Show me the highest-risk transactions from the database',
@@ -262,8 +267,12 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <div className="flex-1 min-w-0">
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-4">
           {/* Natural language answer */}
-          <div className="text-sm text-neutral-200 whitespace-pre-wrap leading-relaxed space-y-1">
-            {message.content}
+          <div className="text-sm text-neutral-200 leading-relaxed [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-base [&>h1]:font-semibold [&>h2]:text-sm [&>h2]:font-semibold [&>h3]:text-sm [&>h3]:font-medium [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2 [&>code]:bg-neutral-800 [&>code]:px-1 [&>code]:rounded [&>pre]:bg-neutral-800 [&>pre]:p-2 [&>pre]:rounded">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {typeof message.content === "string"
+                ? message.content
+                : String(message.content ?? "")}
+            </ReactMarkdown>
           </div>
 
           {/* Audit & Evidence footer — only shown if backend tools were executed */}
