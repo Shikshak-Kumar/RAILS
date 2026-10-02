@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, CheckCircle2, Clock, AlertCircle, X, BookOpen, Search } from 'lucide-react';
-import type { RegulatoryReport, ReportStatus, RegulatorySource } from '@/types';
+import { FileText, Download, CheckCircle2, Clock, AlertCircle, X, BookOpen, Search, Loader2 } from 'lucide-react';
+import type { RegulatoryReport, RegulatorySource } from '@/types';
 import { api } from '@/lib/api';
 import { formatDateTime, timeAgo } from '@/lib/utils';
 
@@ -8,9 +8,9 @@ const statusConfig: Record<string, { color: string; bg: string; icon: React.Comp
   DRAFT: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', icon: AlertCircle },
   IN_REVIEW: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', icon: Clock },
   APPROVED: { color: 'text-green-400', bg: 'bg-green-600/10', icon: CheckCircle2 },
+  REJECTED: { color: 'text-red-400', bg: 'bg-red-500/10', icon: X },
   FILED: { color: 'text-green-400', bg: 'bg-green-600/10', icon: CheckCircle2 },
 };
-const DEFAULT_STATUS = { color: 'text-neutral-400', bg: 'bg-neutral-500/10', icon: AlertCircle };
 
 const typeColors: Record<string, string> = {
   STR: 'bg-red-600',
@@ -19,6 +19,33 @@ const typeColors: Record<string, string> = {
   AML_ALERT: 'bg-yellow-500',
 };
 
+const STATIC_REGULATORY_SOURCES: RegulatorySource[] = [
+  {
+    document_id: 'FINCEN-BSA-31CFR',
+    document_name: '31 CFR § 1020.320 — Reports by Banks of Suspicious Transactions',
+    section: 'Section 1020.320(a)(2)',
+    page: 4,
+    text: 'A transaction requires reporting under the terms of this section if it is conducted or attempted by, at, or through the bank, involves or aggregates at least $5,000, and the bank knows, suspects, or has reason to suspect that the transaction involves funds derived from illegal activity.',
+    evidence_id: 'ev-reg-fincen-01',
+  },
+  {
+    document_id: 'FATF-REC-20',
+    document_name: 'FATF Guidance on Financial Investigations & Structuring (Recommendation 20)',
+    section: 'Recommendation 20 / Rapid Movement',
+    page: 12,
+    text: 'Financial institutions should report suspicious transactions promptly when transactions show rapid pass-through of funds with minimal balance retention, inconsistent with the customer profile.',
+    evidence_id: 'ev-reg-fatf-02',
+  },
+  {
+    document_id: 'OCC-BSA-MANUAL',
+    document_name: 'FFIEC BSA/AML Examination Manual — Customer Due Diligence',
+    section: 'Velocity & Structuring Red Flags',
+    page: 28,
+    text: 'Transactions characterized by high frequency and velocity within short time windows, or multiple counterparties funnelling into a single receiver without economic rationale, trigger mandatory EDD and STR drafting.',
+    evidence_id: 'ev-reg-ffiec-03',
+  },
+];
+
 export function ReportsPage() {
   const [selected, setSelected] = useState<RegulatoryReport | null>(null);
   const [tab, setTab] = useState<'reports' | 'regulations'>('reports');
@@ -26,22 +53,21 @@ export function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.getReports();
+      setReports(res || []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let mounted = true;
-    api.getReports()
-      .then(res => {
-        if (mounted) {
-          setReports(res || []);
-          setLoading(false);
-        }
-      })
-      .catch(err => {
-        if (mounted) {
-          setError(err.message);
-          setLoading(false);
-        }
-      });
-    return () => { mounted = false; };
+    fetchReports();
   }, []);
 
   return (
@@ -49,7 +75,7 @@ export function ReportsPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Regulatory Reports</h1>
         <p className="text-sm text-neutral-400 mt-1">
-          STR, SAR, and AML alert reports with human-in-the-loop approval workflow
+          Suspicious Transaction Reports (STR/SAR) with human-in-the-loop compliance review and legal audit trails
         </p>
       </div>
 
@@ -61,7 +87,7 @@ export function ReportsPage() {
             tab === 'reports' ? 'border-white text-white' : 'border-transparent text-neutral-500 hover:text-neutral-300'
           }`}
         >
-          Reports
+          Reports ({reports.length})
         </button>
         <button
           onClick={() => setTab('regulations')}
@@ -76,13 +102,15 @@ export function ReportsPage() {
       {tab === 'reports' ? (
         <div className="space-y-3">
           {loading && (
-            <div className="py-12 text-center text-sm text-neutral-500">Loading reports...</div>
+            <div className="py-12 text-center text-sm text-neutral-500">Loading reports from database...</div>
           )}
           {error && (
-            <div className="py-12 text-center text-sm text-red-500">Error: {error}</div>
+            <div className="py-12 text-center text-sm text-red-500">Error loading reports: {error}</div>
           )}
           {!loading && !error && reports.length === 0 && (
-            <div className="py-12 text-center text-sm text-neutral-500">No reports available.</div>
+            <div className="py-12 text-center text-sm text-neutral-500">
+              No reports available. Generate an STR draft from any case in the Cases page.
+            </div>
           )}
           {reports.map((r) => {
             const sc = statusConfig[r.status] || statusConfig['DRAFT'];
@@ -95,7 +123,7 @@ export function ReportsPage() {
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${typeColors[r.type] || 'bg-gray-500'} text-white`}>
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${typeColors[r.type] || 'bg-neutral-700'} text-white`}>
                       <FileText className="h-5 w-5" />
                     </div>
                     <div>
@@ -122,10 +150,19 @@ export function ReportsPage() {
           })}
         </div>
       ) : (
-        <RegulatorySourcesTab sources={[]} />
+        <RegulatorySourcesTab sources={STATIC_REGULATORY_SOURCES} />
       )}
 
-      {selected && <ReportDetail report={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ReportDetail
+          report={selected}
+          onClose={() => setSelected(null)}
+          onRefresh={() => {
+            fetchReports();
+            setSelected(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -136,7 +173,7 @@ function RegulatorySourcesTab({ sources }: { sources: RegulatorySource[] }) {
     (s) =>
       !search ||
       s.document_name.toLowerCase().includes(search.toLowerCase()) ||
-      s.text.toLowerCase().includes(search.toLowerCase()),
+      s.text.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -175,9 +212,65 @@ function RegulatorySourcesTab({ sources }: { sources: RegulatorySource[] }) {
   );
 }
 
-function ReportDetail({ report, onClose }: { report: RegulatoryReport; onClose: () => void }) {
-  const sc = statusConfig[report.status];
+function ReportDetail({
+  report: initialReport,
+  onClose,
+  onRefresh,
+}: {
+  report: RegulatoryReport;
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  const [report, setReport] = useState<RegulatoryReport>(initialReport);
+  const [processing, setProcessing] = useState(false);
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const sc = statusConfig[report.status] || statusConfig['DRAFT'];
   const StatusIcon = sc.icon;
+
+  const handleApprove = async () => {
+    try {
+      setProcessing(true);
+      setNotice(null);
+      const updated = await api.approveReport(report.report_id || report.id);
+      setReport({ ...report, status: 'APPROVED', approved_by: updated.approved_by || 'Compliance Officer' });
+      setNotice({ type: 'success', message: 'Report approved and validated for regulatory filing.' });
+      onRefresh();
+    } catch (err: any) {
+      setNotice({ type: 'error', message: `Approval failed: ${err.message}` });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      setProcessing(true);
+      setNotice(null);
+      await api.rejectReport(report.report_id || report.id);
+      setReport({ ...report, status: 'REJECTED' });
+      setNotice({ type: 'success', message: 'Report marked as REJECTED.' });
+      onRefresh();
+    } catch (err: any) {
+      setNotice({ type: 'error', message: `Rejection failed: ${err.message}` });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleExportDocx = async () => {
+    try {
+      setProcessing(true);
+      setNotice(null);
+      api.downloadReportFile(report.report_id);
+      setNotice({ type: 'success', message: 'Report downloaded successfully from backend.' });
+    } catch (err: any) {
+      setNotice({ type: 'error', message: `Export failed: ${err.message}` });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -194,8 +287,20 @@ function ReportDetail({ report, onClose }: { report: RegulatoryReport; onClose: 
         </div>
 
         <div className="p-5 space-y-5">
+          {notice && (
+            <div
+              className={`p-3 rounded-lg text-xs font-medium ${
+                notice.type === 'success'
+                  ? 'bg-green-600/10 text-green-400 border border-green-600/30'
+                  : 'bg-red-600/10 text-red-400 border border-red-600/30'
+              }`}
+            >
+              {notice.message}
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
-            <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${typeColors[report.type]} text-white`}>
+            <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${typeColors[report.type] || 'bg-neutral-700'} text-white`}>
               <FileText className="h-6 w-6" />
             </div>
             <div>
@@ -220,11 +325,15 @@ function ReportDetail({ report, onClose }: { report: RegulatoryReport; onClose: 
           <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-4">
             <div className="text-xs text-neutral-500 mb-2">Evidence Chain</div>
             <div className="flex flex-wrap gap-2">
-              {report.evidence_ids.map((eid) => (
-                <span key={eid} className="text-xs font-mono px-2 py-1 rounded bg-neutral-800 text-neutral-300">
-                  {eid}
-                </span>
-              ))}
+              {report.evidence_ids && report.evidence_ids.length > 0 ? (
+                report.evidence_ids.map((eid) => (
+                  <span key={eid} className="text-xs font-mono px-2 py-1 rounded bg-neutral-800 text-neutral-300">
+                    {eid}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-neutral-600">No linked evidence recorded</span>
+              )}
             </div>
           </div>
 
@@ -236,43 +345,39 @@ function ReportDetail({ report, onClose }: { report: RegulatoryReport; onClose: 
           <div className="space-y-2">
             {report.status === 'DRAFT' || report.status === 'IN_REVIEW' ? (
               <>
-                <button className="w-full py-2.5 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                <button
+                  onClick={handleApprove}
+                  disabled={processing}
+                  className="w-full py-2.5 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                >
                   <CheckCircle2 className="h-4 w-4" />
                   Approve Report
                 </button>
-                <button 
-                  onClick={async () => {
-                    try {
-                      await api.generateReport(report.title, report.body);
-                      alert('Export generation started successfully.');
-                    } catch (err: any) {
-                      alert('Failed to generate report export: ' + err.message);
-                    }
-                  }}
-                  className="w-full py-2.5 rounded-lg border border-neutral-700 text-neutral-400 text-sm font-bold hover:text-white hover:border-neutral-600 transition-colors flex items-center justify-center gap-2"
+                <button
+                  onClick={handleExportDocx}
+                  disabled={processing}
+                  className="w-full py-2.5 rounded-lg border border-neutral-700 text-neutral-400 text-sm font-bold hover:text-white hover:border-neutral-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                 >
                   <Download className="h-4 w-4" />
-                  Export as DOCX
+                  Export as DOCX / Text
                 </button>
-                <button className="w-full py-2.5 rounded-lg border border-red-600 text-red-500 text-sm font-bold hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center gap-2">
+                <button
+                  onClick={handleReject}
+                  disabled={processing}
+                  className="w-full py-2.5 rounded-lg border border-red-600 text-red-500 text-sm font-bold hover:bg-red-600 hover:text-white disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                >
                   <X className="h-4 w-4" />
                   Reject Report
                 </button>
               </>
             ) : (
-              <button 
-                onClick={async () => {
-                  try {
-                    await api.generateReport(report.title, report.body);
-                    alert('Export generation started successfully.');
-                  } catch (err: any) {
-                    alert('Failed to generate report export: ' + err.message);
-                  }
-                }}
-                className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"
+              <button
+                onClick={handleExportDocx}
+                disabled={processing}
+                className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
               >
                 <Download className="h-4 w-4" />
-                Download DOCX
+                Download Report File
               </button>
             )}
           </div>

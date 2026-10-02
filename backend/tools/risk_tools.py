@@ -39,5 +39,20 @@ def anomaly_check(transaction_id: str, sender_id: str, receiver_id: str, amount:
 
 
 @register_tool('account_risk_check')
-def account_risk_check(account_id: str, history: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    return predict_account_risk(account_id=account_id, history=history or [])
+def account_risk_check(account_id: str, history: list[dict[str, Any]] | None = None, **kwargs: Any) -> dict[str, Any]:
+    return predict_account_risk(account_id=account_id, history=history or [], **kwargs)
+
+
+@register_tool('rules_check')
+def rules_check(transaction_id: str, sender_id: str, receiver_id: str, amount: float, timestamp: Any, **kwargs: Any) -> dict[str, Any]:
+    from backend.ml.rules import evaluate_transaction_rules
+    return evaluate_transaction_rules(
+        transaction_id=transaction_id,
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        amount=amount,
+        timestamp=timestamp,
+        sender_history=kwargs.get('sender_history'),
+        receiver_history=kwargs.get('receiver_history'),
+        pair_history=kwargs.get('pair_history'),
+    )

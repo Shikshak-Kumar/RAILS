@@ -11,12 +11,10 @@ import {
   ArrowDownRight,
   Zap,
 } from 'lucide-react';
-import type { DashboardStats } from '@/types';
+import type { DashboardStats, Transaction, Case } from '@/types';
 import { api } from '@/lib/api';
-import type { Transaction, Case } from '@/types';
-import { formatCurrency, formatNumber, timeAgo, riskBarColor } from '@/lib/utils';
+import { formatCurrency, formatNumber, timeAgo } from '@/lib/utils';
 import { RiskBadge } from '@/components/RiskBadge';
-import { RiskBar } from '@/components/RiskBar';
 
 interface Props {
   onNavigate: (page: 'transactions' | 'cases' | 'reports' | 'copilot') => void;
@@ -39,12 +37,12 @@ export function DashboardPage({ onNavigate }: Props) {
         ]);
         if (!mounted) return;
         setStats(overviewRes);
-        
-        const highRisk = (txRes.items || []).filter((t: Transaction) => 
+
+        const highRisk = (txRes.items || []).filter((t: Transaction) =>
           t.risk_assessment && (t.risk_assessment.risk_level === 'HIGH' || t.risk_assessment.risk_level === 'CRITICAL')
         ).slice(0, 6);
         setRecentHighRisk(highRisk);
-        
+
         const casesList = (casesRes || []).slice(0, 4);
         setRecentCases(casesList);
       } catch (err: any) {
@@ -66,13 +64,23 @@ export function DashboardPage({ onNavigate }: Props) {
     return <div className="p-4 text-neutral-400">Loading dashboard...</div>;
   }
 
+  const rawStats = stats as any;
+  const dist = rawStats.risk_distribution || {
+    critical: stats.critical_count || 0,
+    high: stats.high_risk_count || 0,
+    medium: 0,
+    low: Math.max(0, stats.total_transactions - ((stats.critical_count || 0) + (stats.high_risk_count || 0))),
+  };
+  const distTotal = stats.total_transactions > 0 ? stats.total_transactions : 1;
+  const modelStatus = rawStats.model_status || {};
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Risk Intelligence Overview</h1>
         <p className="text-sm text-neutral-400 mt-1">
-          Real-time fraud, liquidity, credit, and regulatory monitoring across 3.1M transactions
+          Real-time fraud, anomaly, account risk, and regulatory monitoring across {formatNumber(stats.total_transactions)} transactions
         </p>
       </div>
 
@@ -82,24 +90,18 @@ export function DashboardPage({ onNavigate }: Props) {
           label="Total Transactions"
           value={formatNumber(stats.total_transactions)}
           icon={Activity}
-          trend="+1.2%"
-          trendUp
           accent="text-white"
         />
         <StatCard
           label="High Risk"
           value={formatNumber(stats.high_risk_count)}
           icon={ShieldAlert}
-          trend="+0.4%"
-          trendUp
           accent="text-red-400"
         />
         <StatCard
           label="Critical Alerts"
           value={formatNumber(stats.critical_count)}
           icon={AlertTriangle}
-          trend="+3"
-          trendUp
           accent="text-red-500"
           pulse
         />
@@ -113,8 +115,6 @@ export function DashboardPage({ onNavigate }: Props) {
           label="Fraud Detected"
           value={formatNumber(stats.fraud_detected)}
           icon={Zap}
-          trend="+2"
-          trendUp
           accent="text-yellow-400"
         />
         <StatCard
@@ -135,7 +135,6 @@ export function DashboardPage({ onNavigate }: Props) {
           label="Avg Risk Score"
           value={`${Math.round(stats.avg_risk_score * 100)}%`}
           icon={TrendingUp}
-          trend="-0.1%"
           accent="text-green-400"
         />
       </div>
@@ -146,13 +145,13 @@ export function DashboardPage({ onNavigate }: Props) {
         <div className="lg:col-span-2 rounded-xl border border-neutral-800 bg-neutral-900/40 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-neutral-200">Risk Level Distribution</h2>
-            <span className="text-xs text-neutral-500">Last 24 hours</span>
+            <span className="text-xs text-neutral-500">Live PostgreSQL Database</span>
           </div>
           <div className="space-y-3">
-            <RiskDistRow label="Critical" count={1247} total={3147892} color="bg-red-600" />
-            <RiskDistRow label="High" count={8421} total={3147892} color="bg-red-500" />
-            <RiskDistRow label="Medium" count={47820} total={3147892} color="bg-yellow-500" />
-            <RiskDistRow label="Low" count={3090404} total={3147892} color="bg-green-600" />
+            <RiskDistRow label="Critical" count={dist.critical || 0} total={distTotal} color="bg-red-600" />
+            <RiskDistRow label="High" count={dist.high || 0} total={distTotal} color="bg-red-500" />
+            <RiskDistRow label="Medium" count={dist.medium || 0} total={distTotal} color="bg-yellow-500" />
+            <RiskDistRow label="Low" count={dist.low || 0} total={distTotal} color="bg-green-600" />
           </div>
         </div>
 
@@ -160,11 +159,31 @@ export function DashboardPage({ onNavigate }: Props) {
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-5">
           <h2 className="text-sm font-semibold text-neutral-200 mb-4">ML Model Status</h2>
           <div className="space-y-3">
-            <ModelStatusRow name="Fraud Model" version="v2.1.0" status="active" />
-            <ModelStatusRow name="Anomaly Model" version="v1.3.0" status="active" />
-            <ModelStatusRow name="Account Risk" version="v1.0.2" status="active" />
-            <ModelStatusRow name="Liquidity Model" version="v0.9.1" status="active" />
-            <ModelStatusRow name="Credit Model" version="v1.1.0" status="active" />
+            <ModelStatusRow
+              name="Fraud Model"
+              version={modelStatus.fraud_model?.version || 'v20261002'}
+              status={modelStatus.fraud_model?.loaded ? 'active' : 'idle'}
+            />
+            <ModelStatusRow
+              name="Anomaly Model"
+              version={modelStatus.anomaly_model?.version || 'v20261002'}
+              status={modelStatus.anomaly_model?.loaded ? 'active' : 'idle'}
+            />
+            <ModelStatusRow
+              name="Account Risk"
+              version={modelStatus.account_risk_model?.version || 'v20261002'}
+              status={modelStatus.account_risk_model?.loaded ? 'active' : 'idle'}
+            />
+            <ModelStatusRow
+              name="Liquidity Model"
+              version={modelStatus.liquidity_model?.version || 'v1.0.0'}
+              status={modelStatus.liquidity_model?.loaded ? 'active' : 'idle'}
+            />
+            <ModelStatusRow
+              name="Credit Model"
+              version={modelStatus.credit_model?.version || 'v1.0.0'}
+              status={modelStatus.credit_model?.loaded ? 'active' : 'idle'}
+            />
           </div>
         </div>
       </div>
@@ -181,48 +200,54 @@ export function DashboardPage({ onNavigate }: Props) {
           </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-neutral-500 border-b border-neutral-800">
-                <th className="text-left font-medium py-2 pr-4">Transaction ID</th>
-                <th className="text-left font-medium py-2 pr-4 hidden md:table-cell">Sender</th>
-                <th className="text-left font-medium py-2 pr-4 hidden md:table-cell">Amount</th>
-                <th className="text-left font-medium py-2 pr-4 hidden sm:table-cell">Fraud %</th>
-                <th className="text-left font-medium py-2 pr-4 hidden sm:table-cell">Anomaly</th>
-                <th className="text-left font-medium py-2 pr-4">Risk</th>
-                <th className="text-left font-medium py-2">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentHighRisk.map((tx) => (
-                <tr
-                  key={tx.transaction_id}
-                  className="border-b border-neutral-800/50 hover:bg-neutral-800/30 cursor-pointer transition-colors"
-                  onClick={() => onNavigate('transactions')}
-                >
-                  <td className="py-2.5 pr-4 font-mono text-xs text-neutral-300">{tx.transaction_id}</td>
-                  <td className="py-2.5 pr-4 hidden md:table-cell text-xs text-neutral-400">{tx.sender_id}</td>
-                  <td className="py-2.5 pr-4 hidden md:table-cell text-xs text-neutral-300">
-                    {formatCurrency(tx.amount, tx.currency)}
-                  </td>
-                  <td className="py-2.5 pr-4 hidden sm:table-cell">
-                    <span className="text-xs font-bold text-red-400 tabular-nums">
-                      {Math.round((tx.risk_assessment?.fraud_probability ?? 0) * 100)}%
-                    </span>
-                  </td>
-                  <td className="py-2.5 pr-4 hidden sm:table-cell">
-                    <span className="text-xs font-bold text-red-400 tabular-nums">
-                      {Math.round((tx.risk_assessment?.anomaly_score ?? 0) * 100)}%
-                    </span>
-                  </td>
-                  <td className="py-2.5 pr-4">
-                    <RiskBadge level={tx.risk_assessment!.risk_level} />
-                  </td>
-                  <td className="py-2.5 text-xs text-neutral-500">{timeAgo(tx.timestamp)}</td>
+          {recentHighRisk.length === 0 ? (
+            <div className="py-8 text-center text-xs text-neutral-500">
+              No recent high-risk transactions detected.
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-neutral-500 border-b border-neutral-800">
+                  <th className="text-left font-medium py-2 pr-4">Transaction ID</th>
+                  <th className="text-left font-medium py-2 pr-4 hidden md:table-cell">Sender</th>
+                  <th className="text-left font-medium py-2 pr-4 hidden md:table-cell">Amount</th>
+                  <th className="text-left font-medium py-2 pr-4 hidden sm:table-cell">Fraud %</th>
+                  <th className="text-left font-medium py-2 pr-4 hidden sm:table-cell">Anomaly</th>
+                  <th className="text-left font-medium py-2 pr-4">Risk</th>
+                  <th className="text-left font-medium py-2">Time</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentHighRisk.map((tx) => (
+                  <tr
+                    key={tx.transaction_id}
+                    className="border-b border-neutral-800/50 hover:bg-neutral-800/30 cursor-pointer transition-colors"
+                    onClick={() => onNavigate('transactions')}
+                  >
+                    <td className="py-2.5 pr-4 font-mono text-xs text-neutral-300">{tx.transaction_id}</td>
+                    <td className="py-2.5 pr-4 hidden md:table-cell text-xs text-neutral-400">{tx.sender_id}</td>
+                    <td className="py-2.5 pr-4 hidden md:table-cell text-xs text-neutral-300">
+                      {formatCurrency(tx.amount, tx.currency)}
+                    </td>
+                    <td className="py-2.5 pr-4 hidden sm:table-cell">
+                      <span className="text-xs font-bold text-red-400 tabular-nums">
+                        {Math.round((tx.risk_assessment?.fraud_probability ?? 0) * 100)}%
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4 hidden sm:table-cell">
+                      <span className="text-xs font-bold text-red-400 tabular-nums">
+                        {Math.round((tx.risk_assessment?.anomaly_score ?? 0) * 100)}%
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      <RiskBadge level={tx.risk_assessment!.risk_level} />
+                    </td>
+                    <td className="py-2.5 text-xs text-neutral-500">{timeAgo(tx.timestamp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -237,36 +262,42 @@ export function DashboardPage({ onNavigate }: Props) {
             View all <ArrowUpRight className="h-3 w-3" />
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {recentCases.map((c) => (
-            <div
-              key={c.id}
-              className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-4 hover:border-neutral-700 cursor-pointer transition-colors"
-              onClick={() => onNavigate('cases')}
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <span className="font-mono text-xs text-neutral-500">{c.case_id}</span>
-                <RiskBadge level={c.risk_level} />
+        {recentCases.length === 0 ? (
+          <div className="py-8 text-center text-xs text-neutral-500">
+            No active cases currently open.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {recentCases.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => onNavigate('cases')}
+                className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-4 hover:border-neutral-700 cursor-pointer transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <span className="font-mono text-xs text-neutral-500">{c.case_id}</span>
+                  <RiskBadge level={c.risk_level} />
+                </div>
+                <h3 className="text-sm font-semibold text-neutral-200 line-clamp-1">{c.title}</h3>
+                <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{c.description}</p>
+                <div className="mt-3 flex items-center justify-between text-[10px] text-neutral-500">
+                  <span>Assigned: {c.assigned_to}</span>
+                  <span>{timeAgo(c.updated_at)}</span>
+                </div>
               </div>
-              <h3 className="text-sm font-semibold text-neutral-100 mb-1 line-clamp-1">{c.title}</h3>
-              <p className="text-xs text-neutral-400 line-clamp-2">{c.description}</p>
-              <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-500">
-                <span>{c.assigned_to}</span>
-                <span>{timeAgo(c.updated_at)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Copilot CTA */}
-      <div className="rounded-xl border border-neutral-800 bg-gradient-to-br from-neutral-900 to-neutral-950 p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white">
-            <Zap className="h-6 w-6 text-black" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-sm font-bold text-white">Ask the Risk Copilot</h2>
+      {/* Copilot teaser */}
+      <div className="rounded-xl border border-neutral-800 bg-gradient-to-r from-neutral-900/80 to-neutral-900/40 p-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-white" />
+              <h2 className="text-sm font-semibold text-white">Ask Risk Copilot</h2>
+            </div>
             <p className="text-xs text-neutral-400 mt-0.5">
               Natural language queries with ML-backed evidence, verification, and audit-ready outputs
             </p>

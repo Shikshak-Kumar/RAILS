@@ -56,6 +56,7 @@ class ModelLoader:
         metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
         feature_order = json.loads(feature_path.read_text(encoding='utf-8'))
         pipeline = joblib.load(pipeline_path)
+        self._fix_pipeline_compatibility(pipeline)
 
         loaded = LoadedModel(
             model_name=model_name,
@@ -66,6 +67,20 @@ class ModelLoader:
         )
         self._cache[model_name] = loaded
         return loaded
+
+    @staticmethod
+    def _fix_pipeline_compatibility(pipe_or_dict: Any) -> None:
+        """Handle scikit-learn cross-version unpickling differences."""
+        if isinstance(pipe_or_dict, dict):
+            if 'model' in pipe_or_dict:
+                ModelLoader._fix_pipeline_compatibility(pipe_or_dict['model'])
+            if 'scorer' in pipe_or_dict and hasattr(pipe_or_dict['scorer'], 'iso'):
+                ModelLoader._fix_pipeline_compatibility(pipe_or_dict['scorer'].iso)
+            return
+        if hasattr(pipe_or_dict, 'named_steps'):
+            for _, step in pipe_or_dict.named_steps.items():
+                if hasattr(step, '_fit_dtype') and not hasattr(step, '_fill_dtype'):
+                    step._fill_dtype = step._fit_dtype
 
     def status(self, model_name: str) -> dict[str, Any]:
         try:

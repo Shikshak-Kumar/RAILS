@@ -1,34 +1,88 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, ShieldCheck, AlertCircle, FileText, Zap, Loader2 } from 'lucide-react';
+import { Send, ShieldCheck, AlertCircle, FileText, Zap, Loader2, CheckCircle2, Clock, Cpu } from 'lucide-react';
 import type { ChatMessage, ToolCall } from '@/types';
 import { api } from '@/lib/api';
-import { formatCurrency, timeAgo } from '@/lib/utils';
-import { RiskBadge } from '@/components/RiskBadge';
+import { timeAgo } from '@/lib/utils';
 
 const quickPrompts = [
-  'Show me the highest-risk transactions from the last 24 hours',
-  'What is the risk profile of account HDFC-482910?',
-  'Are there any fan-out patterns in recent transactions?',
-  'What regulatory requirements apply to this case?',
-  'Generate an STR draft for case CASE-2026-0018',
+  'Show me the highest-risk transactions from the database',
+  'What is the risk profile of account 12345?',
+  'Are there any fan-out or structuring patterns in recent transactions?',
+  'What regulatory reporting requirements apply under FinCEN and FATF?',
+  'Draft a suspicious transaction report for high risk activity',
 ];
 
 const toolNames = [
-  'get_transaction', 'get_account_transactions', 'get_transaction_risk', 'get_account_risk',
-  'get_fraud_signals', 'get_anomaly_signals', 'get_graph_signals', 'get_liquidity_risk',
-  'get_credit_risk', 'search_regulation', 'search_policy', 'create_case', 'get_case',
-  'generate_str_draft', 'generate_regulatory_report', 'get_evidence', 'simulate_transactions',
+  'get_transaction', 'list_transactions', 'fraud_check', 'anomaly_check',
+  'account_risk_check', 'account_history', 'get_case', 'generate_report',
 ];
 
+const COPILOT_STORAGE_KEY = 'rails.copilotMessages';
+const ACTIVE_EXEC_KEY = 'rails.activeExecutionId';
+
 export function CopilotPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const raw = localStorage.getItem(COPILOT_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    localStorage.setItem(COPILOT_STORAGE_KEY, JSON.stringify(messages));
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isThinking]);
+
+  useEffect(() => {
+    const activeExecId = localStorage.getItem(ACTIVE_EXEC_KEY);
+    if (!activeExecId) return;
+
+    setIsThinking(true);
+    const pollInterval = setInterval(async () => {
+      try {
+        const exec = await api.getExecution(activeExecId);
+        if (exec.status === 'COMPLETED' || exec.status === 'FAILED') {
+          clearInterval(pollInterval);
+          localStorage.removeItem(ACTIVE_EXEC_KEY);
+          setIsThinking(false);
+
+          if (exec.final_answer) {
+            setMessages((prev) => {
+              // Avoid duplicate append
+              if (prev.some((m) => m.content === exec.final_answer)) return prev;
+              return [
+                ...prev,
+                {
+                  id: `msg-${Date.now()}`,
+                  role: 'assistant',
+                  content: exec.final_answer,
+                  timestamp: exec.completed_at || new Date().toISOString(),
+                  verified: exec.status === 'COMPLETED',
+                  tool_calls: (exec.steps || []).filter((s: any) => s.step_type === 'tool').map((s: any) => ({
+                    tool_name: s.name,
+                    arguments: s.arguments,
+                    result_summary: s.result_summary,
+                    evidence_id: s.evidence_id || '',
+                  })),
+                },
+              ];
+            });
+          }
+        }
+      } catch {
+        clearInterval(pollInterval);
+        localStorage.removeItem(ACTIVE_EXEC_KEY);
+        setIsThinking(false);
+      }
+    }, 800);
+
+    return () => clearInterval(pollInterval);
+  }, []);
 
   const send = async (text: string) => {
     if (!text.trim() || isThinking) return;
@@ -45,23 +99,41 @@ export function CopilotPage() {
 
     try {
       const response = await api.chatWithCopilot(text);
-      setMessages((m) => [...m, {
-        ...response,
-        id: response.id || `msg-${Date.now()}`,
-        timestamp: response.timestamp || new Date().toISOString(),
-        role: 'assistant'
-      }]);
+      if (response.execution_id) {
+        localStorage.setItem(ACTIVE_EXEC_KEY, response.execution_id);
+      }
+
+      setMessages((m) => [
+        ...m,
+        {
+          ...response,
+          id: response.id || `msg-${Date.now()}`,
+          content: response.content || response.answer || 'Response generated from tools.',
+          timestamp: response.timestamp || new Date().toISOString(),
+          role: 'assistant',
+          tool_calls: response.tool_calls || [],
+          evidence_ids: response.evidence_ids || [],
+          verified: response.verified !== undefined ? response.verified : true,
+        },
+      ]);
+      localStorage.removeItem(ACTIVE_EXEC_KEY);
     } catch (err: any) {
-      setMessages((m) => [...m, {
-        id: `msg-${Date.now()}`,
-        role: 'assistant',
-        content: `Error connecting to copilot: ${err.message}`,
-        timestamp: new Date().toISOString()
-      } as ChatMessage]);
+      localStorage.removeItem(ACTIVE_EXEC_KEY);
+      setMessages((m) => [
+        ...m,
+        {
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: `Unable to complete Copilot query: ${err.message}`,
+          timestamp: new Date().toISOString(),
+          verified: false,
+        },
+      ]);
     } finally {
       setIsThinking(false);
     }
   };
+
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)]">
@@ -80,26 +152,57 @@ export function CopilotPage() {
 
       {/* Chat area */}
       <div className="flex-1 overflow-y-auto rounded-xl border border-neutral-800 bg-neutral-900/30 p-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="h-full flex flex-col items-center justify-center text-center p-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-black mb-3">
+              <Zap className="h-6 w-6" />
+            </div>
+            <h2 className="text-base font-semibold text-white">Risk, Fraud & AML Copilot</h2>
+            <p className="text-xs text-neutral-400 max-w-md mt-1 mb-6">
+              Ask about transaction risks, inspect account histories, analyze anomalies, or generate verified STR drafts. All claims are grounded in tool execution and logged evidence.
+            </p>
+          </div>
+        )}
+
         {messages.map((msg) => (
           <MessageBubble key={msg.id} message={msg} />
         ))}
+
         {isThinking && (
-          <div className="flex items-center gap-3 text-neutral-500">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white">
-              <Loader2 className="h-4 w-4 text-black animate-spin" />
+          <div className="flex gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white">
+              <Zap className="h-4 w-4 text-black animate-pulse" />
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm">Analyzing with ML models</span>
-              <span className="flex gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-neutral-600 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="h-1.5 w-1.5 rounded-full bg-neutral-600 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="h-1.5 w-1.5 rounded-full bg-neutral-600 animate-bounce" style={{ animationDelay: '300ms' }} />
-              </span>
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 space-y-3 min-w-[280px]">
+              <div className="flex items-center justify-between text-xs text-neutral-400">
+                <span className="font-bold text-white flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                  Agent Execution Pipeline
+                </span>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 font-bold uppercase">
+                  RUNNING
+                </span>
+              </div>
+              <div className="space-y-1.5 pt-1 text-xs">
+                <div className="flex items-center gap-2 text-green-400">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Intent & Tool Planning</span>
+                </div>
+                <div className="flex items-center gap-2 text-neutral-200">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                  <span>Executing Tools & Inferences</span>
+                </div>
+                <div className="flex items-center gap-2 text-neutral-500">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>Evidence Collection & Verifier</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
         <div ref={endRef} />
       </div>
+
 
       {/* Quick prompts */}
       {messages.length <= 2 && (
@@ -108,7 +211,8 @@ export function CopilotPage() {
             <button
               key={p}
               onClick={() => send(p)}
-              className="px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-900/50 text-xs text-neutral-400 hover:text-white hover:border-neutral-600 transition-colors"
+              disabled={isThinking}
+              className="px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-900/50 text-xs text-neutral-400 hover:text-white hover:border-neutral-600 disabled:opacity-50 transition-colors text-left"
             >
               {p}
             </button>
@@ -137,11 +241,10 @@ export function CopilotPage() {
 
       {/* Tool list */}
       <div className="mt-2 flex items-center gap-2 flex-wrap">
-        <span className="text-[10px] text-neutral-600">Available tools:</span>
-        {toolNames.slice(0, 8).map((t) => (
+        <span className="text-[10px] text-neutral-600">Audited execution tools:</span>
+        {toolNames.map((t) => (
           <span key={t} className="text-[10px] font-mono text-neutral-600">{t}</span>
         ))}
-        <span className="text-[10px] text-neutral-700">+{toolNames.length - 8} more</span>
       </div>
     </div>
   );
@@ -167,7 +270,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-4">
-          <p className="text-sm text-neutral-200 whitespace-pre-wrap">{message.content}</p>
+          {/* Natural language answer */}
+          <p className="text-sm text-neutral-200 whitespace-pre-wrap leading-relaxed">{message.content}</p>
 
           {/* Tool calls */}
           {message.tool_calls && message.tool_calls.length > 0 && (
@@ -231,5 +335,3 @@ function ToolCallCard({ call }: { call: ToolCall }) {
     </div>
   );
 }
-
-

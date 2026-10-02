@@ -1,0 +1,127 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Callable
+
+
+class ToolValidationError(ValueError):
+    """Raised when a tool is called with missing or invalid arguments."""
+    pass
+
+
+@dataclass
+class ToolContract:
+    name: str
+    description: str
+    required_args: dict[str, type]
+    optional_args: dict[str, type] = field(default_factory=dict)
+
+    def validate(self, kwargs: dict[str, Any]) -> tuple[bool, str | None]:
+        missing: list[str] = []
+        for arg, expected_type in self.required_args.items():
+            if arg not in kwargs or kwargs[arg] is None:
+                missing.append(arg)
+        if missing:
+            return False, f"Tool '{self.name}' requires arguments: {', '.join(missing)}. Received: {list(kwargs.keys())}"
+        return True, None
+
+
+TOOL_CONTRACTS: dict[str, ToolContract] = {
+    "list_transactions": ToolContract(
+        name="list_transactions",
+        description="List transactions from the database with pagination and optional risk level filter.",
+        required_args={},
+        optional_args={"limit": int, "offset": int, "search": str, "risk_level": str},
+    ),
+    "get_transaction": ToolContract(
+        name="get_transaction",
+        description="Retrieve a single transaction by its unique transaction_id.",
+        required_args={"transaction_id": str},
+        optional_args={},
+    ),
+    "fraud_check": ToolContract(
+        name="fraud_check",
+        description="Run the XGBoost/Logistic fraud ML model inference on transaction features.",
+        required_args={
+            "transaction_id": str,
+            "sender_id": str,
+            "receiver_id": str,
+            "amount": (int, float),
+            "timestamp": Any,
+        },
+        optional_args={
+            "currency": str,
+            "transaction_type": str,
+            "sender_history": list,
+            "receiver_history": list,
+            "pair_history": list,
+        },
+    ),
+    "anomaly_check": ToolContract(
+        name="anomaly_check",
+        description="Run the Isolation Forest anomaly detection model on transaction features.",
+        required_args={
+            "transaction_id": str,
+            "sender_id": str,
+            "receiver_id": str,
+            "amount": (int, float),
+            "timestamp": Any,
+        },
+        optional_args={
+            "currency": str,
+            "transaction_type": str,
+            "sender_history": list,
+            "receiver_history": list,
+            "pair_history": list,
+        },
+    ),
+    "account_risk_check": ToolContract(
+        name="account_risk_check",
+        description="Evaluate historical activity and compute account risk score.",
+        required_args={"account_id": str},
+        optional_args={"history": list},
+    ),
+    "account_history": ToolContract(
+        name="account_history",
+        description="Query the transaction history of a sender or receiver account.",
+        required_args={"account_id": str},
+        optional_args={"before": Any, "limit": int},
+    ),
+    "rules_check": ToolContract(
+        name="rules_check",
+        description="Evaluate deterministic AML and compliance rules against a transaction.",
+        required_args={
+            "transaction_id": str,
+            "sender_id": str,
+            "receiver_id": str,
+            "amount": (int, float),
+            "timestamp": Any,
+        },
+        optional_args={
+            "sender_history": list,
+            "receiver_history": list,
+            "pair_history": list,
+        },
+    ),
+    "get_case": ToolContract(
+        name="get_case",
+        description="Fetch case details and status by case_id.",
+        required_args={"case_id": str},
+        optional_args={},
+    ),
+    "generate_report": ToolContract(
+        name="generate_report",
+        description="Generate an STR/SAR draft report for a compliance case.",
+        required_args={"case_id": str},
+        optional_args={"transaction_id": str, "narrative": str},
+    ),
+}
+
+
+def validate_tool_call(name: str, kwargs: dict[str, Any]) -> None:
+    contract = TOOL_CONTRACTS.get(name)
+    if not contract:
+        return
+    ok, error_msg = contract.validate(kwargs)
+    if not ok:
+        raise ToolValidationError(error_msg)

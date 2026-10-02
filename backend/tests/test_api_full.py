@@ -6,6 +6,8 @@ Run with:  python3 tests/test_api_full.py
 """
 from __future__ import annotations
 
+__test__ = False
+
 import json
 import sys
 import time

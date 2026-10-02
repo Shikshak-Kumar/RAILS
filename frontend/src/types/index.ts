@@ -2,7 +2,7 @@ export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export type CaseStatus = 'OPEN' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'FILED';
 
-export type ReportStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'FILED';
+export type ReportStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'FILED' | 'REJECTED';
 
 export type SimulationType =
   | 'normal'
@@ -53,6 +53,11 @@ export interface Transaction {
   transaction_type: string;
   from_bank: string;
   to_bank: string;
+  risk_level?: RiskLevel;
+  risk_score?: number;
+  fraud_probability?: number;
+  anomaly_score?: number;
+  signals?: string[];
   risk_assessment?: RiskAssessment;
   is_laundering?: boolean;
 }
@@ -142,12 +147,16 @@ export interface SimulationResult {
 }
 
 export interface SimulationSummary {
-  total_transactions: number;
-  high_risk: number;
-  critical: number;
-  cases_generated: number;
-  avg_fraud_probability: number;
-  avg_anomaly_score: number;
+  total_transactions?: number;
+  total_evaluated?: number;
+  high_risk?: number;
+  high_risk_count?: number;
+  medium_risk_count?: number;
+  critical?: number;
+  cases_generated?: number;
+  avg_fraud_probability?: number;
+  avg_anomaly_score?: number;
+  average_risk_score?: number;
 }
 
 export interface DashboardStats {

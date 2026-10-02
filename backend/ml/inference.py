@@ -11,8 +11,15 @@ from backend.ml.feature_adapter import build_feature_row
 from backend.ml.model_loader import load_model
 
 
-def _as_frame(feature_order: list[str], values: dict[str, Any]) -> pd.DataFrame:
-    normalized = {name: float(values.get(name, 0.0)) for name in feature_order}
+def _as_frame(feature_order: list[str], values: dict[str, Any], transaction_id: str, model_name: str) -> pd.DataFrame:
+    missing = [name for name in feature_order if name not in values]
+    if missing:
+        import logging
+        logging.getLogger(__name__).error(
+            f"Missing required model features for {model_name} (txn={transaction_id}): {missing}"
+        )
+        raise ValueError(f"Missing required model features for {model_name}: {missing}")
+    normalized = {name: float(values[name]) for name in feature_order}
     return pd.DataFrame([normalized], columns=feature_order)
 
 
@@ -21,7 +28,7 @@ def _risk_level(score: float, thresholds: dict[str, float]) -> str:
         return 'CRITICAL'
     if thresholds.get('high', 0.0) and score >= float(thresholds['high']):
         return 'HIGH'
-    if thresholds.get('medium', 0.0) and score >= float(thresholds['medium']):
+    if thresholds.get('medium', 0.0) and score > float(thresholds['medium']):
         return 'MEDIUM'
     return 'LOW'
 
@@ -53,20 +60,70 @@ def predict_transaction_fraud(
         transaction_type=transaction_type,
         currency=currency,
     )
-    frame = _as_frame(model.feature_order, feature_row)
+    frame = _as_frame(model.feature_order, feature_row, transaction_id, 'fraud_model')
     model_dict = model.pipeline
+
+    # 1. Execute supervised model + calibration
     raw_score = float(model_dict['model'].predict_proba(frame)[:, 1][0])
-    if 'calibrator' in model_dict:
+    if 'calibrator' in model_dict and model_dict['calibrator'] is not None:
         calibrated = model_dict['calibrator'].predict(np.asarray([raw_score], dtype=float))
-        fraud_probability = float(calibrated[0])
+        fraud_probability = float(np.clip(calibrated[0], 0.0, 1.0))
     else:
-        fraud_probability = raw_score
-    risk_level = _risk_level(fraud_probability, model.metadata.get('thresholds', {}))
+        fraud_probability = float(np.clip(raw_score, 0.0, 1.0))
+
+    thresholds = model.metadata.get('thresholds', {})
+    risk_level = _risk_level(fraud_probability, thresholds)
+
+    # 2. Derive REAL signals only when conditions are true
+    signals: list[str] = []
+    signal_details: list[dict[str, Any]] = []
+
+    s_cnt_1h = float(feature_row.get('s_cnt_1h', 0))
+    s_cnt_24h = float(feature_row.get('s_cnt_24h', 0))
+    if s_cnt_1h >= 5 or s_cnt_24h >= 20:
+        signals.append('high_transaction_velocity')
+        signal_details.append({'signal': 'high_transaction_velocity', 'value': s_cnt_1h, 'threshold': 5})
+
+    s_fanout = float(feature_row.get('s_fanout_ratio', 0))
+    s_out_deg = float(feature_row.get('s_out_deg', 0))
+    if s_fanout >= 0.8 and s_out_deg >= 5:
+        signals.append('high_fanout')
+        signal_details.append({'signal': 'high_fanout', 'value': round(s_fanout, 2), 'threshold': 0.8})
+
+    r_fanin = float(feature_row.get('r_fanin_ratio', 0))
+    r_in_deg = float(feature_row.get('r_in_deg', 0))
+    if r_fanin >= 0.8 and r_in_deg >= 5:
+        signals.append('high_fanin')
+        signal_details.append({'signal': 'high_fanin', 'value': round(r_fanin, 2), 'threshold': 0.8})
+
+    if float(feature_row.get('is_new_pair', 0)) == 1:
+        signals.append('new_counterparty')
+        signal_details.append({'signal': 'new_counterparty', 'value': 0, 'threshold': 1})
+
+    s_amt_z = float(feature_row.get('s_amt_z', 0))
+    if s_amt_z >= 3.0:
+        signals.append('amount_above_sender_baseline')
+        signal_details.append({'signal': 'amount_above_sender_baseline', 'value': round(s_amt_z, 2), 'threshold': 3.0})
+
+    if float(feature_row.get('rapid_move_flag', 0)) == 1:
+        signals.append('rapid_outflow')
+        signal_details.append({'signal': 'rapid_outflow', 'value': 1, 'threshold': 1})
+
+    if float(feature_row.get('is_night', 0)) == 1:
+        signals.append('nighttime_transaction')
+        signal_details.append({'signal': 'nighttime_transaction', 'value': feature_row.get('hour'), 'threshold': '22:00-06:00'})
+
+    high_thresh = float(thresholds.get('high', 0.1325))
+    if fraud_probability >= high_thresh:
+        signals.append('elevated_fraud_probability')
+        signal_details.append({'signal': 'elevated_fraud_probability', 'value': round(fraud_probability, 4), 'threshold': round(high_thresh, 4)})
+
     return {
         'transaction_id': transaction_id,
         'fraud_probability': fraud_probability,
         'risk_level': risk_level,
-        'signals': ['transaction_histogram', 'fanout_ratio', 'velocity_signal'],
+        'signals': signals,
+        'signal_details': signal_details,
         'model_name': 'fraud_model',
         'model_version': model.model_version,
         'scoring_method': model.metadata.get('scoring_method', 'supervised_classifier'),
@@ -101,15 +158,47 @@ def predict_transaction_anomaly(
         transaction_type=transaction_type,
         currency=currency,
     )
-    key_values = [abs(float(feature_row.get(name, 0.0))) for name in model.feature_order]
-    anomaly_score = float(min(1.0, sum(key_values) / max(len(key_values), 1) / 10.0))
+    frame = _as_frame(model.feature_order, feature_row, transaction_id, 'anomaly_model')
+
+    pipe = model.pipeline['model'] if isinstance(model.pipeline, dict) and 'model' in model.pipeline else model.pipeline
+    raw_decision = float(pipe.decision_function(frame)[0])
+
+    # Convert IsolationForest decision function to percentile using score_grid & grid
+    score_grid = model.pipeline.get('score_grid') if isinstance(model.pipeline, dict) else None
+    grid = model.pipeline.get('grid') if isinstance(model.pipeline, dict) else None
+
+    if score_grid is not None and grid is not None:
+        percentile = float(np.interp(raw_decision, score_grid, grid))
+        anomaly_score = float(np.clip(1.0 - percentile, 0.0, 1.0))
+    else:
+        anomaly_score = float(np.clip(1.0 / (1.0 + np.exp(raw_decision * 10.0)), 0.0, 1.0))
+
     thresholds = model.metadata.get('thresholds', {})
     risk_level = _risk_level(anomaly_score, thresholds)
+
+    signals: list[str] = []
+    signal_details: list[dict[str, Any]] = []
+
+    med_thresh = float(thresholds.get('medium', 0.95))
+    high_thresh = float(thresholds.get('high', 0.99))
+    crit_thresh = float(thresholds.get('critical', 0.999))
+
+    if anomaly_score >= crit_thresh:
+        signals.append('critical_anomaly_outlier')
+        signal_details.append({'signal': 'critical_anomaly_outlier', 'value': round(anomaly_score, 4), 'threshold': crit_thresh})
+    elif anomaly_score >= high_thresh:
+        signals.append('high_anomaly_percentile')
+        signal_details.append({'signal': 'high_anomaly_percentile', 'value': round(anomaly_score, 4), 'threshold': high_thresh})
+    elif anomaly_score >= med_thresh:
+        signals.append('behavioral_anomaly_detected')
+        signal_details.append({'signal': 'behavioral_anomaly_detected', 'value': round(anomaly_score, 4), 'threshold': med_thresh})
+
     return {
         'transaction_id': transaction_id,
         'anomaly_score': anomaly_score,
         'risk_level': risk_level,
-        'signals': ['behavioral_deviation', 'counterparty_velocity', 'pair_anomaly'],
+        'signals': signals,
+        'signal_details': signal_details,
         'model_name': 'anomaly_model',
         'model_version': model.model_version,
         'scoring_method': model.metadata.get('scoring_method', 'unsupervised_anomaly'),
@@ -121,23 +210,52 @@ def predict_account_risk(
     *,
     account_id: str,
     history: list[dict[str, Any]] | None = None,
+    before: datetime | None = None,
 ) -> dict[str, Any]:
     model = load_model('account_risk_model')
-    history = history or []
-    total_in = sum(float(item.get('amount', 0.0)) for item in history if item.get('receiver_id') == account_id)
-    total_out = sum(float(item.get('amount', 0.0)) for item in history if item.get('sender_id') == account_id)
-    transactions = len(history)
+    
+    # Strictly filter prior history to prevent self-contamination
+    if before is not None:
+        from backend.ml.feature_adapter import _parse_ts
+        before_dt = _parse_ts(before)
+        clean_history = [item for item in (history or []) if _parse_ts(item.get('timestamp')) < before_dt]
+    else:
+        clean_history = list(history or [])
+
+    total_in = sum(float(item.get('amount', 0.0)) for item in clean_history if item.get('receiver_id') == account_id)
+    total_out = sum(float(item.get('amount', 0.0)) for item in clean_history if item.get('sender_id') == account_id)
+    transactions = len(clean_history)
     net_flow = total_in - total_out
-    volatility = math.sqrt(sum((float(item.get('amount', 0.0)) - (total_in / max(1, transactions))) ** 2 for item in history) / max(1, transactions))
-    flow_pressure = min(1.0, (total_out / max(1.0, total_in + total_out)))
-    score = min(1.0, 0.35 * flow_pressure + 0.2 * (transactions / 100.0) + 0.25 * (max(0.0, net_flow) / max(1.0, abs(net_flow) + total_in + total_out)) + 0.2 * (volatility / max(1.0, total_out + total_in)))
-    score = max(0.0, min(1.0, score))
-    risk_level = _risk_level(score, model.metadata.get('thresholds', {}))
+    volatility = math.sqrt(sum((float(item.get('amount', 0.0)) - (total_in / max(1, transactions))) ** 2 for item in clean_history) / max(1, transactions)) if clean_history else 0.0
+    flow_pressure = min(1.0, (total_out / max(1.0, total_in + total_out))) if (total_in + total_out) > 0 else 0.0
+    
+    score = min(1.0, 0.35 * flow_pressure + 0.2 * (min(transactions, 100) / 100.0) + 0.25 * (max(0.0, net_flow) / max(1.0, abs(net_flow) + total_in + total_out)) + 0.2 * (volatility / max(1.0, total_out + total_in)))
+    score = float(max(0.0, min(1.0, score)))
+
+    thresholds = model.metadata.get('thresholds', {})
+    risk_level = _risk_level(score, thresholds)
+
+    signals: list[str] = []
+    signal_details: list[dict[str, Any]] = []
+
+    if flow_pressure >= 0.8 and (total_out >= 5000.0 or transactions >= 5):
+        signals.append('account_flow_pressure')
+        signal_details.append({'signal': 'account_flow_pressure', 'value': round(flow_pressure, 2), 'threshold': 0.8})
+
+    if transactions >= 20:
+        signals.append('velocity_instability')
+        signal_details.append({'signal': 'velocity_instability', 'value': transactions, 'threshold': 20})
+
+    if score >= float(thresholds.get('high', 0.750)):
+        signals.append('high_account_risk')
+        signal_details.append({'signal': 'high_account_risk', 'value': round(score, 3), 'threshold': round(float(thresholds.get('high', 0.750)), 3)})
+
     return {
         'account_id': account_id,
         'risk_score': score,
         'risk_level': risk_level,
-        'signals': ['account_flow_pressure', 'net_flow_drift', 'velocity_instability'],
+        'signals': signals,
+        'signal_details': signal_details,
         'model_name': 'account_risk_model',
         'model_version': model.model_version,
         'evidence_ids': [],

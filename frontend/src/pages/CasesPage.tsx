@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, X, FileText, CheckCircle2, Clock, AlertCircle, User } from 'lucide-react';
+import { Search, X, FileText, CheckCircle2, Clock, AlertCircle, User, Loader2 } from 'lucide-react';
 import type { Case, CaseStatus } from '@/types';
 import { api } from '@/lib/api';
 import { timeAgo, formatDateTime } from '@/lib/utils';
@@ -26,7 +26,9 @@ export function CasesPage() {
 
   const fetchCases = async () => {
     try {
-      const res = await api.getCases();
+      setLoading(true);
+      setError(null);
+      const res = await api.getCases(statusFilter, search);
       setCases(res || []);
     } catch (err: any) {
       setError(err.message);
@@ -36,24 +38,18 @@ export function CasesPage() {
   };
 
   useEffect(() => {
-    fetchCases();
-  }, []);
-
-  const filtered = cases.filter((c) => {
-    const matchesSearch =
-      !search ||
-      c.case_id.toLowerCase().includes(search.toLowerCase()) ||
-      c.title.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+    const timer = setTimeout(() => {
+      fetchCases();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [statusFilter, search]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Cases</h1>
         <p className="text-sm text-neutral-400 mt-1">
-          {cases.length} cases — suspicious activity investigations and regulatory filings
+          {cases.length} active investigations and suspicious activity cases
         </p>
       </div>
 
@@ -63,14 +59,14 @@ export function CasesPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
           <input
             type="text"
-            placeholder="Search by case ID or title..."
+            placeholder="Search by case ID or summary..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-neutral-900 border border-neutral-800 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
           />
         </div>
         <div className="flex gap-2 flex-wrap">
-          {(['ALL', 'OPEN', 'UNDER_REVIEW', 'APPROVED', 'FILED'] as const).map((s) => (
+          {(['ALL', 'OPEN', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'FILED'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -88,12 +84,12 @@ export function CasesPage() {
 
       {/* Case cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map((c) => {
-          const sc = statusConfig[c.status];
+        {cases.map((c) => {
+          const sc = statusConfig[c.status] || statusConfig['OPEN'];
           const StatusIcon = sc.icon;
           return (
             <div
-              key={c.id}
+              key={c.id || c.case_id}
               className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-5 hover:border-neutral-700 cursor-pointer transition-colors"
               onClick={() => setSelected(c)}
             >
@@ -123,12 +119,12 @@ export function CasesPage() {
       </div>
 
       {loading && (
-        <div className="py-12 text-center text-sm text-neutral-500">Loading cases...</div>
+        <div className="py-12 text-center text-sm text-neutral-500">Loading cases from database...</div>
       )}
       {error && (
-        <div className="py-12 text-center text-sm text-red-500">Error: {error}</div>
+        <div className="py-12 text-center text-sm text-red-500">Error loading cases: {error}</div>
       )}
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && !error && cases.length === 0 && (
         <div className="py-12 text-center text-sm text-neutral-500">No cases match your filters.</div>
       )}
 
@@ -138,26 +134,42 @@ export function CasesPage() {
 }
 
 function CaseDetail({ caseData, onClose, onRefresh }: { caseData: Case; onClose: () => void; onRefresh: () => void }) {
-  const sc = statusConfig[caseData.status];
+  const [currentCase, setCurrentCase] = useState<Case>(caseData);
+  const [updating, setUpdating] = useState(false);
+  const [generatingSTR, setGeneratingSTR] = useState(false);
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const sc = statusConfig[currentCase.status] || statusConfig['OPEN'];
   const StatusIcon = sc.icon;
 
   const handleStatusChange = async (status: string) => {
     try {
-      await api.updateCaseStatus(caseData.case_id, status);
-      alert(`Case updated to ${status}`);
+      setUpdating(true);
+      setNotice(null);
+      await api.updateCaseStatus(currentCase.case_id, status);
+      setCurrentCase({ ...currentCase, status: status as any });
+      setNotice({ type: 'success', message: `Case status updated to ${status}.` });
       onRefresh();
-      onClose();
     } catch (err: any) {
-      alert(`Failed to update case: ${err.message}`);
+      setNotice({ type: 'error', message: `Failed to update case: ${err.message}` });
+    } finally {
+      setUpdating(false);
     }
   };
 
   const handleGenerateReport = async () => {
     try {
-      await api.generateReport(`Report for ${caseData.case_id}`, `Automatically generated STR for ${caseData.transaction_id}`);
-      alert('Report drafted successfully!');
+      setGeneratingSTR(true);
+      setNotice(null);
+      const rep = await api.generateSTRDraft(currentCase.case_id, currentCase.transaction_id);
+      setNotice({
+        type: 'success',
+        message: `STR Draft created successfully (${rep.report_id || 'STR'}). Available in Regulatory Reports tab.`,
+      });
     } catch (err: any) {
-      alert(`Failed to draft report: ${err.message}`);
+      setNotice({ type: 'error', message: `Failed to draft STR: ${err.message}` });
+    } finally {
+      setGeneratingSTR(false);
     }
   };
 
@@ -167,8 +179,10 @@ function CaseDetail({ caseData, onClose, onRefresh }: { caseData: Case; onClose:
       <div className="relative w-full max-w-lg h-full bg-neutral-950 border-l border-neutral-800 overflow-y-auto">
         <div className="sticky top-0 flex items-center justify-between px-5 py-4 border-b border-neutral-800 bg-neutral-950 z-10">
           <div>
-            <h2 className="text-sm font-bold text-white">{caseData.case_id}</h2>
-            <p className="text-xs text-neutral-500 mt-0.5">{caseData.transaction_id}</p>
+            <h2 className="text-sm font-bold text-white">{currentCase.case_id}</h2>
+            {currentCase.transaction_id && (
+              <p className="text-xs text-neutral-500 mt-0.5">TX: {currentCase.transaction_id}</p>
+            )}
           </div>
           <button onClick={onClose} className="text-neutral-400 hover:text-white">
             <X className="h-5 w-5" />
@@ -176,49 +190,65 @@ function CaseDetail({ caseData, onClose, onRefresh }: { caseData: Case; onClose:
         </div>
 
         <div className="p-5 space-y-5">
+          {notice && (
+            <div
+              className={`p-3 rounded-lg text-xs font-medium ${
+                notice.type === 'success'
+                  ? 'bg-green-600/10 text-green-400 border border-green-600/30'
+                  : 'bg-red-600/10 text-red-400 border border-red-600/30'
+              }`}
+            >
+              {notice.message}
+            </div>
+          )}
+
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <RiskBadge level={caseData.risk_level} size="md" />
+              <RiskBadge level={currentCase.risk_level} size="md" />
               <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md ${sc.bg}`}>
                 <StatusIcon className={`h-3 w-3 ${sc.color}`} />
-                <span className={`text-[10px] font-bold uppercase ${sc.color}`}>{caseData.status.replace('_', ' ')}</span>
+                <span className={`text-[10px] font-bold uppercase ${sc.color}`}>{currentCase.status.replace('_', ' ')}</span>
               </div>
             </div>
-            <h3 className="text-base font-bold text-white mt-3">{caseData.title}</h3>
-            <p className="text-sm text-neutral-400 mt-2">{caseData.description}</p>
+            <h3 className="text-base font-bold text-white mt-3">{currentCase.title}</h3>
+            <p className="text-sm text-neutral-400 mt-2">{currentCase.description}</p>
           </div>
 
           <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs text-neutral-500">Assigned to</span>
-              <span className="text-sm text-neutral-200">{caseData.assigned_to}</span>
+              <span className="text-sm text-neutral-200">{currentCase.assigned_to}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-neutral-500">Created</span>
-              <span className="text-sm text-neutral-200">{formatDateTime(caseData.created_at)}</span>
+              <span className="text-sm text-neutral-200">{formatDateTime(currentCase.created_at)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-neutral-500">Last updated</span>
-              <span className="text-sm text-neutral-200">{formatDateTime(caseData.updated_at)}</span>
+              <span className="text-sm text-neutral-200">{formatDateTime(currentCase.updated_at)}</span>
             </div>
             <div className="pt-2 border-t border-neutral-800">
               <span className="text-xs text-neutral-500">Evidence IDs</span>
               <div className="mt-2 flex flex-wrap gap-2">
-                {caseData.evidence_ids.map((eid) => (
-                  <span key={eid} className="text-xs font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
-                    {eid}
-                  </span>
-                ))}
+                {currentCase.evidence_ids && currentCase.evidence_ids.length > 0 ? (
+                  currentCase.evidence_ids.map((eid) => (
+                    <span key={eid} className="text-xs font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                      {eid}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-neutral-600">No linked evidence IDs</span>
+                )}
               </div>
             </div>
           </div>
 
-          {caseData.signals.length > 0 && (
+          {currentCase.signals && currentCase.signals.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-neutral-200 mb-3">Risk Signals</h3>
               <div className="space-y-2">
-                {caseData.signals.map((sig) => (
-                  <SignalCard key={sig.id} signal={sig} />
+                {currentCase.signals.map((sig) => (
+                  <SignalCard key={sig.id || sig.name} signal={sig} />
                 ))}
               </div>
             </div>
@@ -228,23 +258,27 @@ function CaseDetail({ caseData, onClose, onRefresh }: { caseData: Case; onClose:
           <div className="space-y-2">
             <button
               onClick={handleGenerateReport}
-              className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"
+              disabled={generatingSTR}
+              className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
-              <FileText className="h-4 w-4" />
-              Generate STR Draft
+              {generatingSTR ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {generatingSTR ? 'Drafting STR with ML Evidence...' : 'Generate STR Draft'}
             </button>
-            {caseData.status === 'OPEN' || caseData.status === 'UNDER_REVIEW' ? (
+
+            {currentCase.status === 'OPEN' || currentCase.status === 'UNDER_REVIEW' ? (
               <>
                 <button
                   onClick={() => handleStatusChange('APPROVED')}
-                  className="w-full py-2.5 rounded-lg border border-green-600 text-green-500 text-sm font-bold hover:bg-green-600 hover:text-white transition-colors flex items-center justify-center gap-2"
+                  disabled={updating}
+                  className="w-full py-2.5 rounded-lg border border-green-600 text-green-500 text-sm font-bold hover:bg-green-600 hover:text-white disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   Approve & File
                 </button>
                 <button
                   onClick={() => handleStatusChange('REJECTED')}
-                  className="w-full py-2.5 rounded-lg border border-red-600 text-red-500 text-sm font-bold hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center gap-2"
+                  disabled={updating}
+                  className="w-full py-2.5 rounded-lg border border-red-600 text-red-500 text-sm font-bold hover:bg-red-600 hover:text-white disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                 >
                   <X className="h-4 w-4" />
                   Reject Case
