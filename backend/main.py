@@ -1,6 +1,14 @@
 from __future__ import annotations
 
+# ── Path bootstrap — allows running from inside backend/ or from project root ──
+import sys, pathlib
+_REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+# ─────────────────────────────────────────────────────────────────────────────
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # ── Router imports (all real implementations) ────────────────────────────────
 from backend.api.cases import router as cases_router
@@ -10,6 +18,21 @@ from backend.api.risk import router as risk_router
 from backend.api.transactions import router as transactions_router
 
 app = FastAPI(title="RAILS Risk Sentinel", version="0.1.0")
+
+# ── CORS — allow the Vite dev server and any future deployed frontend ─────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",   # Vite dev server
+        "http://localhost:4173",   # Vite preview
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:4173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# ─────────────────────────────────────────────────────────────────────────────
 
 # Register routers FIRST so their paths win over any stubs below
 app.include_router(transactions_router)

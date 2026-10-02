@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, X, FileText, CheckCircle2, Clock, AlertCircle, User } from 'lucide-react';
 import type { Case, CaseStatus } from '@/types';
-import { demoCases } from '@/data/demoData';
+import { api } from '@/lib/api';
 import { timeAgo, formatDateTime } from '@/lib/utils';
 import { RiskBadge } from '@/components/RiskBadge';
 import { SignalCard } from '@/components/SignalCard';
 
-const statusConfig: Record<CaseStatus, { color: string; bg: string; icon: React.ComponentType<{ className?: string }> }> = {
+const statusConfig: Record<string, { color: string; bg: string; icon: React.ComponentType<{ className?: string }> }> = {
   OPEN: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', icon: AlertCircle },
   UNDER_REVIEW: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', icon: Clock },
   APPROVED: { color: 'text-green-400', bg: 'bg-green-600/10', icon: CheckCircle2 },
   REJECTED: { color: 'text-red-400', bg: 'bg-red-500/10', icon: X },
   FILED: { color: 'text-green-400', bg: 'bg-green-600/10', icon: CheckCircle2 },
+  CLOSED: { color: 'text-neutral-400', bg: 'bg-neutral-500/10', icon: CheckCircle2 },
 };
 
 export function CasesPage() {
@@ -19,7 +20,26 @@ export function CasesPage() {
   const [statusFilter, setStatusFilter] = useState<CaseStatus | 'ALL'>('ALL');
   const [selected, setSelected] = useState<Case | null>(null);
 
-  const filtered = demoCases.filter((c) => {
+  const [cases, setCases] = useState<Case[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchCases = async () => {
+    try {
+      const res = await api.getCases();
+      setCases(res || []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCases();
+  }, []);
+
+  const filtered = cases.filter((c) => {
     const matchesSearch =
       !search ||
       c.case_id.toLowerCase().includes(search.toLowerCase()) ||
@@ -33,7 +53,7 @@ export function CasesPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Cases</h1>
         <p className="text-sm text-neutral-400 mt-1">
-          {demoCases.length} cases — suspicious activity investigations and regulatory filings
+          {cases.length} cases — suspicious activity investigations and regulatory filings
         </p>
       </div>
 
@@ -102,18 +122,44 @@ export function CasesPage() {
         })}
       </div>
 
-      {filtered.length === 0 && (
+      {loading && (
+        <div className="py-12 text-center text-sm text-neutral-500">Loading cases...</div>
+      )}
+      {error && (
+        <div className="py-12 text-center text-sm text-red-500">Error: {error}</div>
+      )}
+      {!loading && !error && filtered.length === 0 && (
         <div className="py-12 text-center text-sm text-neutral-500">No cases match your filters.</div>
       )}
 
-      {selected && <CaseDetail caseData={selected} onClose={() => setSelected(null)} />}
+      {selected && <CaseDetail caseData={selected} onClose={() => setSelected(null)} onRefresh={fetchCases} />}
     </div>
   );
 }
 
-function CaseDetail({ caseData, onClose }: { caseData: Case; onClose: () => void }) {
+function CaseDetail({ caseData, onClose, onRefresh }: { caseData: Case; onClose: () => void; onRefresh: () => void }) {
   const sc = statusConfig[caseData.status];
   const StatusIcon = sc.icon;
+
+  const handleStatusChange = async (status: string) => {
+    try {
+      await api.updateCaseStatus(caseData.case_id, status);
+      alert(`Case updated to ${status}`);
+      onRefresh();
+      onClose();
+    } catch (err: any) {
+      alert(`Failed to update case: ${err.message}`);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    try {
+      await api.generateReport(`Report for ${caseData.case_id}`, `Automatically generated STR for ${caseData.transaction_id}`);
+      alert('Report drafted successfully!');
+    } catch (err: any) {
+      alert(`Failed to draft report: ${err.message}`);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -180,17 +226,26 @@ function CaseDetail({ caseData, onClose }: { caseData: Case; onClose: () => void
 
           {/* Actions */}
           <div className="space-y-2">
-            <button className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2">
+            <button
+              onClick={handleGenerateReport}
+              className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"
+            >
               <FileText className="h-4 w-4" />
               Generate STR Draft
             </button>
             {caseData.status === 'OPEN' || caseData.status === 'UNDER_REVIEW' ? (
               <>
-                <button className="w-full py-2.5 rounded-lg border border-green-600 text-green-500 text-sm font-bold hover:bg-green-600 hover:text-white transition-colors flex items-center justify-center gap-2">
+                <button
+                  onClick={() => handleStatusChange('APPROVED')}
+                  className="w-full py-2.5 rounded-lg border border-green-600 text-green-500 text-sm font-bold hover:bg-green-600 hover:text-white transition-colors flex items-center justify-center gap-2"
+                >
                   <CheckCircle2 className="h-4 w-4" />
                   Approve & File
                 </button>
-                <button className="w-full py-2.5 rounded-lg border border-red-600 text-red-500 text-sm font-bold hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center gap-2">
+                <button
+                  onClick={() => handleStatusChange('REJECTED')}
+                  className="w-full py-2.5 rounded-lg border border-red-600 text-red-500 text-sm font-bold hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center gap-2"
+                >
                   <X className="h-4 w-4" />
                   Reject Case
                 </button>

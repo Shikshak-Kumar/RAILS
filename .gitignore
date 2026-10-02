@@ -1,5 +1,5 @@
 .env
 .env.*
-!.env.example
+!.env.exampleg
 .csv
 database/HI-Small_Trans.csv

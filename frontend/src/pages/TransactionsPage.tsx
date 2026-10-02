@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, ArrowRight, X, Download } from 'lucide-react';
 import type { Transaction, RiskLevel } from '@/types';
-import { demoTransactions } from '@/data/demoData';
+import { api } from '@/lib/api';
 import { formatCurrency, timeAgo, formatDateTime } from '@/lib/utils';
 import { RiskBadge } from '@/components/RiskBadge';
 import { RiskBar } from '@/components/RiskBar';
@@ -11,9 +11,30 @@ export function TransactionsPage() {
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState<RiskLevel | 'ALL'>('ALL');
   const [selected, setSelected] = useState<Transaction | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getTransactions(100)
+      .then(res => {
+        if (mounted) {
+          setTransactions(res.items || []);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        if (mounted) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+    return () => { mounted = false; };
+  }, []);
 
   const filtered = useMemo(() => {
-    return demoTransactions.filter((t) => {
+    return transactions.filter((t) => {
       const matchesSearch =
         !search ||
         t.transaction_id.toLowerCase().includes(search.toLowerCase()) ||
@@ -22,14 +43,14 @@ export function TransactionsPage() {
       const matchesRisk = riskFilter === 'ALL' || t.risk_assessment?.risk_level === riskFilter;
       return matchesSearch && matchesRisk;
     });
-  }, [search, riskFilter]);
+  }, [search, riskFilter, transactions]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Transactions</h1>
         <p className="text-sm text-neutral-400 mt-1">
-          {demoTransactions.length.toLocaleString()} transactions with ML risk assessments
+          {transactions.length.toLocaleString()} transactions with ML risk assessments
         </p>
       </div>
 
@@ -82,7 +103,7 @@ export function TransactionsPage() {
             <tbody>
               {filtered.map((tx) => (
                 <tr
-                  key={tx.id}
+                  key={tx.transaction_id}
                   className="border-b border-neutral-800/50 hover:bg-neutral-800/30 cursor-pointer transition-colors"
                   onClick={() => setSelected(tx)}
                 >
@@ -126,7 +147,13 @@ export function TransactionsPage() {
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && (
+        {loading && (
+          <div className="py-12 text-center text-sm text-neutral-500">Loading transactions...</div>
+        )}
+        {error && (
+          <div className="py-12 text-center text-sm text-red-500">Error: {error}</div>
+        )}
+        {!loading && !error && filtered.length === 0 && (
           <div className="py-12 text-center text-sm text-neutral-500">No transactions match your filters.</div>
         )}
       </div>
@@ -137,7 +164,35 @@ export function TransactionsPage() {
   );
 }
 
-function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => void }) {
+function TransactionDetail({ tx: initialTx, onClose }: { tx: Transaction; onClose: () => void }) {
+  const [tx, setTx] = useState<Transaction>(initialTx);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [creatingCase, setCreatingCase] = useState(false);
+
+  const handleAnalyze = async () => {
+    try {
+      setAnalyzing(true);
+      const res = await api.analyzeTransaction(tx.transaction_id);
+      setTx({ ...tx, risk_assessment: res });
+    } catch (err: any) {
+      alert(`Analysis failed: ${err.message}`);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleCreateCase = async () => {
+    try {
+      setCreatingCase(true);
+      await api.createCase(`Manual Case for TX ${tx.transaction_id}`, 'OPEN');
+      alert('Case created successfully!');
+    } catch (err: any) {
+      alert(`Case creation failed: ${err.message}`);
+    } finally {
+      setCreatingCase(false);
+    }
+  };
+
   const ra = tx.risk_assessment;
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -224,11 +279,19 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">
-            <button className="flex-1 py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors">
-              Analyze Risk
+            <button
+              onClick={handleAnalyze}
+              disabled={analyzing}
+              className="flex-1 py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors disabled:opacity-50"
+            >
+              {analyzing ? 'Analyzing...' : 'Analyze Risk'}
             </button>
-            <button className="flex-1 py-2.5 rounded-lg border border-red-600 text-red-500 text-sm font-bold hover:bg-red-600 hover:text-white transition-colors">
-              Create Case
+            <button
+              onClick={handleCreateCase}
+              disabled={creatingCase}
+              className="flex-1 py-2.5 rounded-lg border border-red-600 text-red-500 text-sm font-bold hover:bg-red-600 hover:text-white transition-colors disabled:opacity-50"
+            >
+              {creatingCase ? 'Creating...' : 'Create Case'}
             </button>
             <button className="py-2.5 px-3 rounded-lg border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors">
               <Download className="h-4 w-4" />

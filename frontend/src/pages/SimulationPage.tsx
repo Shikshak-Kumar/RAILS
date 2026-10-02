@@ -1,7 +1,18 @@
 import { useState } from 'react';
 import { Play, Pause, RotateCcw, Activity, Zap, TrendingUp, AlertTriangle } from 'lucide-react';
 import type { SimulationType, Transaction, SimulationSummary } from '@/types';
-import { simulationPresets, simulateTransactions, getSimulationSummary } from '@/data/demoData';
+import { api } from '@/lib/api';
+
+const simulationPresets: Record<SimulationType, { label: string; description: string; color: string }> = {
+  normal: { label: 'Normal Activity', description: 'Standard baseline transactions', color: 'green' },
+  high_velocity: { label: 'High Velocity', description: 'Rapid sequential transfers', color: 'red' },
+  fan_in: { label: 'Fan-In', description: 'Multiple senders to one receiver', color: 'yellow' },
+  fan_out: { label: 'Fan-Out', description: 'One sender to multiple receivers', color: 'red' },
+  rapid_fund_movement: { label: 'Rapid Movement', description: 'Quick in/out of funds', color: 'red' },
+  unusual_amount: { label: 'Unusual Amount', description: 'Large spikes in amounts', color: 'yellow' },
+  liquidity_stress: { label: 'Liquidity Stress', description: 'High outflow ratio', color: 'red' },
+  mixed_risk: { label: 'Mixed Risk', description: 'Combination of patterns', color: 'yellow' }
+};
 import { formatCurrency, timeAgo } from '@/lib/utils';
 import { RiskBadge } from '@/components/RiskBadge';
 import { RiskBar } from '@/components/RiskBar';
@@ -13,17 +24,34 @@ export function SimulationPage() {
   const [results, setResults] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<SimulationSummary | null>(null);
 
-  const run = () => {
+  const run = async () => {
     setRunning(true);
     setResults([]);
     setSummary(null);
 
-    setTimeout(() => {
-      const txns = simulateTransactions(selectedType, count);
+    try {
+      await api.startSimulation(selectedType, count);
+      // Wait for background tasks to process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const res = await api.getTransactions(count);
+      const txns = res.items || [];
       setResults(txns);
-      setSummary(getSimulationSummary(txns));
+      
+      const highRisk = txns.filter((t: Transaction) => t.risk_assessment && (t.risk_assessment.risk_level === 'HIGH' || t.risk_assessment.risk_level === 'CRITICAL')).length;
+      const critical = txns.filter((t: Transaction) => t.risk_assessment && t.risk_assessment.risk_level === 'CRITICAL').length;
+      setSummary({
+        total_transactions: txns.length,
+        high_risk: highRisk,
+        critical: critical,
+        cases_generated: critical, // Approx logic for UI
+        avg_fraud_probability: txns.reduce((a: number, b: Transaction) => a + (b.risk_assessment?.fraud_probability || 0), 0) / (txns.length || 1),
+        avg_anomaly_score: txns.reduce((a: number, b: Transaction) => a + (b.risk_assessment?.anomaly_score || 0), 0) / (txns.length || 1)
+      });
+    } catch (err: any) {
+      alert('Simulation failed: ' + err.message);
+    } finally {
       setRunning(false);
-    }, 1200);
+    }
   };
 
   const reset = () => {

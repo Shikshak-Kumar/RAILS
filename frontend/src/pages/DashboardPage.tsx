@@ -12,7 +12,8 @@ import {
   Zap,
 } from 'lucide-react';
 import type { DashboardStats } from '@/types';
-import { dashboardStats, demoTransactions, demoCases } from '@/data/demoData';
+import { api } from '@/lib/api';
+import type { Transaction, Case } from '@/types';
 import { formatCurrency, formatNumber, timeAgo, riskBarColor } from '@/lib/utils';
 import { RiskBadge } from '@/components/RiskBadge';
 import { RiskBar } from '@/components/RiskBar';
@@ -22,26 +23,48 @@ interface Props {
 }
 
 export function DashboardPage({ onNavigate }: Props) {
-  const [stats, setStats] = useState<DashboardStats>(dashboardStats);
-  const [tickCount, setTickCount] = useState(0);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentHighRisk, setRecentHighRisk] = useState<Transaction[]>([]);
+  const [recentCases, setRecentCases] = useState<Case[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = setInterval(() => {
-      setStats((s) => ({
-        ...s,
-        total_transactions: s.total_transactions + Math.floor(Math.random() * 15) + 3,
-        fraud_detected: s.fraud_detected + (Math.random() < 0.1 ? 1 : 0),
-      }));
-      setTickCount((c) => c + 1);
-    }, 3000);
-    return () => clearInterval(t);
+    let mounted = true;
+    const fetchData = async () => {
+      try {
+        const [overviewRes, txRes, casesRes] = await Promise.all([
+          api.getOverview(),
+          api.getTransactions(50),
+          api.getCases()
+        ]);
+        if (!mounted) return;
+        setStats(overviewRes);
+        
+        const highRisk = (txRes.items || []).filter((t: Transaction) => 
+          t.risk_assessment && (t.risk_assessment.risk_level === 'HIGH' || t.risk_assessment.risk_level === 'CRITICAL')
+        ).slice(0, 6);
+        setRecentHighRisk(highRisk);
+        
+        const casesList = (casesRes || []).slice(0, 4);
+        setRecentCases(casesList);
+      } catch (err: any) {
+        if (mounted) setError(err.message);
+      }
+    };
+    fetchData();
+    const t = setInterval(fetchData, 10000); // refresh every 10s
+    return () => {
+      mounted = false;
+      clearInterval(t);
+    };
   }, []);
 
-  const recentHighRisk = demoTransactions
-    .filter((t) => t.risk_assessment && (t.risk_assessment.risk_level === 'HIGH' || t.risk_assessment.risk_level === 'CRITICAL'))
-    .slice(0, 6);
-
-  const recentCases = demoCases.slice(0, 4);
+  if (error) {
+    return <div className="p-4 text-red-500 bg-red-500/10 rounded-lg">Error loading dashboard: {error}</div>;
+  }
+  if (!stats) {
+    return <div className="p-4 text-neutral-400">Loading dashboard...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -173,7 +196,7 @@ export function DashboardPage({ onNavigate }: Props) {
             <tbody>
               {recentHighRisk.map((tx) => (
                 <tr
-                  key={tx.id}
+                  key={tx.transaction_id}
                   className="border-b border-neutral-800/50 hover:bg-neutral-800/30 cursor-pointer transition-colors"
                   onClick={() => onNavigate('transactions')}
                 >

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, ShieldCheck, AlertCircle, FileText, Zap, Loader2 } from 'lucide-react';
 import type { ChatMessage, ToolCall } from '@/types';
-import { demoChatMessages, demoTransactions, demoCases, demoRegulatorySources } from '@/data/demoData';
+import { api } from '@/lib/api';
 import { formatCurrency, timeAgo } from '@/lib/utils';
 import { RiskBadge } from '@/components/RiskBadge';
 
@@ -21,7 +21,7 @@ const toolNames = [
 ];
 
 export function CopilotPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>(demoChatMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -30,7 +30,7 @@ export function CopilotPage() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isThinking]);
 
-  const send = (text: string) => {
+  const send = async (text: string) => {
     if (!text.trim() || isThinking) return;
 
     const userMsg: ChatMessage = {
@@ -43,11 +43,24 @@ export function CopilotPage() {
     setInput('');
     setIsThinking(true);
 
-    setTimeout(() => {
-      const response = generateResponse(text);
-      setMessages((m) => [...m, response]);
+    try {
+      const response = await api.chatWithCopilot(text);
+      setMessages((m) => [...m, {
+        ...response,
+        id: response.id || `msg-${Date.now()}`,
+        timestamp: response.timestamp || new Date().toISOString(),
+        role: 'assistant'
+      }]);
+    } catch (err: any) {
+      setMessages((m) => [...m, {
+        id: `msg-${Date.now()}`,
+        role: 'assistant',
+        content: `Error connecting to copilot: ${err.message}`,
+        timestamp: new Date().toISOString()
+      } as ChatMessage]);
+    } finally {
       setIsThinking(false);
-    }, 1800 + Math.random() * 800);
+    }
   };
 
   return (
@@ -219,71 +232,4 @@ function ToolCallCard({ call }: { call: ToolCall }) {
   );
 }
 
-function generateResponse(query: string): ChatMessage {
-  const q = query.toLowerCase();
-  const highRisk = demoTransactions.filter(
-    (t) => t.risk_assessment && (t.risk_assessment.risk_level === 'HIGH' || t.risk_assessment.risk_level === 'CRITICAL'),
-  );
 
-  let content = '';
-  let toolCalls: ToolCall[] = [];
-  let evidenceIds: string[] = [];
-
-  if (q.includes('highest-risk') || q.includes('high risk') || q.includes('last 24')) {
-    const top = highRisk.slice(0, 5);
-    content = `I found ${highRisk.length} high-risk transactions. Here are the top ${Math.min(5, top.length)}:\n\n`;
-    top.forEach((t, i) => {
-      content += `${i + 1}. ${t.transaction_id} — ${formatCurrency(t.amount, t.currency)} via ${t.transaction_type}\n`;
-      content += `   Fraud: ${Math.round((t.risk_assessment?.fraud_probability ?? 0) * 100)}% | Anomaly: ${Math.round((t.risk_assessment?.anomaly_score ?? 0) * 100)}% | Risk: ${t.risk_assessment?.risk_level}\n`;
-    });
-    content += `\nAll scores are from the fraud_model (v2.1.0) and anomaly_model (v1.3.0). Every claim is backed by evidence.`;
-    toolCalls = [
-      { tool_name: 'get_recent_transactions', arguments: { time_window: '24h', risk_filter: 'HIGH+' }, result_summary: `${highRisk.length} high-risk transactions found`, evidence_id: 'EV-384920' },
-      { tool_name: 'get_fraud_signals', arguments: { transaction_ids: top.map(t => t.transaction_id) }, result_summary: 'Fraud signals retrieved for 5 transactions', evidence_id: 'EV-384921' },
-    ];
-    evidenceIds = ['EV-384920', 'EV-384921'];
-  } else if (q.includes('hdfc-482910') || q.includes('account') || q.includes('risk profile')) {
-    content = `Account HDFC-482910 has a risk score of 0.91 (CRITICAL).\n\nKey findings:\n- 23 fraud transactions in last 30 days (threshold: 10)\n- Fan-out to 47 unique recipients (threshold: 15)\n- Total volume: $42.5M across 1,847 transactions\n- Last activity: 15 minutes ago\n\nThis account is flagged as a potential layering hub. Case CASE-2026-0018 is already open.`;
-    toolCalls = [
-      { tool_name: 'get_account_risk', arguments: { account_id: 'HDFC-482910' }, result_summary: 'Risk score 0.91 — CRITICAL', evidence_id: 'EV-582910' },
-      { tool_name: 'get_graph_signals', arguments: { account_id: 'HDFC-482910' }, result_summary: 'Fan-out to 47 recipients detected', evidence_id: 'EV-384921' },
-    ];
-    evidenceIds = ['EV-582910', 'EV-384921'];
-  } else if (q.includes('fan-out') || q.includes('fan out') || q.includes('pattern')) {
-    content = `I detected 3 fan-out patterns in recent transactions:\n\n1. HDFC-482910 → 12 receivers in 2 hours ($1.2M total)\n2. ICICI-193847 → 18 crypto wallets in 30 min ($480K)\n3. SBI-572039 → 8 accounts via WIRE ($920K)\n\nAll three are consistent with layering behavior as defined in FATF Recommendation 20.`;
-    toolCalls = [
-      { tool_name: 'get_graph_signals', arguments: { pattern: 'fan_out' }, result_summary: '3 fan-out patterns detected', evidence_id: 'EV-384921' },
-    ];
-    evidenceIds = ['EV-384921'];
-  } else if (q.includes('regulation') || q.includes('regulatory') || q.includes('requirement')) {
-    const src = demoRegulatorySources[0];
-    content = `Based on retrieved regulatory sources, the following requirements apply:\n\n1. FATF Recommendation 20: Financial institutions must report suspicious transactions irrespective of amount.\n2. PMLA 2002, Section 12: Maintain records of all transactions exceeding ₹10 lakh.\n3. RBI Master Directions on KYC: Risk-based categorization of transactions required.\n\nSource: ${src.document_name}, ${src.section}, p.${src.page}`;
-    toolCalls = [
-      { tool_name: 'search_regulation', arguments: { query: 'suspicious transaction reporting requirements' }, result_summary: '4 regulatory sources retrieved', evidence_id: 'EV-REG-001' },
-    ];
-    evidenceIds = ['EV-REG-001', 'EV-REG-002'];
-  } else if (q.includes('str') || q.includes('draft') || q.includes('case')) {
-    const c = demoCases[0];
-    content = `STR Draft for ${c.case_id}:\n\nSubject: ${c.title}\n\n${c.description}\n\nRegulatory basis: FATF Recommendation 20, PMLA Section 12.\nML Evidence: Fraud probability 0.92, Anomaly score 0.95.\nEvidence IDs: ${c.evidence_ids.join(', ')}\n\nStatus: DRAFT — awaiting human review and approval before filing.`;
-    toolCalls = [
-      { tool_name: 'get_case', arguments: { case_id: c.case_id }, result_summary: `Case ${c.case_id} retrieved`, evidence_id: c.evidence_ids[0] },
-      { tool_name: 'generate_str_draft', arguments: { case_id: c.case_id }, result_summary: 'STR draft generated', evidence_id: 'EV-STR-001' },
-      { tool_name: 'search_regulation', arguments: { query: 'STR filing requirements' }, result_summary: 'Regulatory basis retrieved', evidence_id: 'EV-REG-001' },
-    ];
-    evidenceIds = [c.evidence_ids[0], 'EV-STR-001', 'EV-REG-001'];
-  } else {
-    content = `I can help you with:\n- Transaction risk analysis (fraud, anomaly, graph signals)\n- Account risk profiles\n- Liquidity and credit risk\n- Regulatory requirements (FATF, PMLA, Basel III, RBI)\n- STR/SAR draft generation\n- Case management\n\nAll responses are backed by ML model evidence and verified against regulatory sources. What would you like to investigate?`;
-    toolCalls = [];
-    evidenceIds = [];
-  }
-
-  return {
-    id: `msg-${Date.now()}`,
-    role: 'assistant',
-    content,
-    timestamp: new Date().toISOString(),
-    evidence_ids: evidenceIds,
-    verified: true,
-    tool_calls: toolCalls,
-  };
-}

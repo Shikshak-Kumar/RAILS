@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Download, CheckCircle2, Clock, AlertCircle, X, BookOpen, Search } from 'lucide-react';
 import type { RegulatoryReport, ReportStatus, RegulatorySource } from '@/types';
-import { demoReports, demoRegulatorySources } from '@/data/demoData';
+import { api } from '@/lib/api';
 import { formatDateTime, timeAgo } from '@/lib/utils';
 
-const statusConfig: Record<ReportStatus, { color: string; bg: string; icon: React.ComponentType<{ className?: string }> }> = {
+const statusConfig: Record<string, { color: string; bg: string; icon: React.ComponentType<{ className?: string }> }> = {
   DRAFT: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', icon: AlertCircle },
   IN_REVIEW: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', icon: Clock },
   APPROVED: { color: 'text-green-400', bg: 'bg-green-600/10', icon: CheckCircle2 },
   FILED: { color: 'text-green-400', bg: 'bg-green-600/10', icon: CheckCircle2 },
 };
+const DEFAULT_STATUS = { color: 'text-neutral-400', bg: 'bg-neutral-500/10', icon: AlertCircle };
 
 const typeColors: Record<string, string> = {
   STR: 'bg-red-600',
@@ -21,6 +22,27 @@ const typeColors: Record<string, string> = {
 export function ReportsPage() {
   const [selected, setSelected] = useState<RegulatoryReport | null>(null);
   const [tab, setTab] = useState<'reports' | 'regulations'>('reports');
+  const [reports, setReports] = useState<RegulatoryReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getReports()
+      .then(res => {
+        if (mounted) {
+          setReports(res || []);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        if (mounted) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -53,18 +75,27 @@ export function ReportsPage() {
 
       {tab === 'reports' ? (
         <div className="space-y-3">
-          {demoReports.map((r) => {
-            const sc = statusConfig[r.status];
+          {loading && (
+            <div className="py-12 text-center text-sm text-neutral-500">Loading reports...</div>
+          )}
+          {error && (
+            <div className="py-12 text-center text-sm text-red-500">Error: {error}</div>
+          )}
+          {!loading && !error && reports.length === 0 && (
+            <div className="py-12 text-center text-sm text-neutral-500">No reports available.</div>
+          )}
+          {reports.map((r) => {
+            const sc = statusConfig[r.status] || statusConfig['DRAFT'];
             const StatusIcon = sc.icon;
             return (
               <div
-                key={r.id}
+                key={r.id || r.report_id}
                 className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-5 hover:border-neutral-700 cursor-pointer transition-colors"
                 onClick={() => setSelected(r)}
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${typeColors[r.type]} text-white`}>
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${typeColors[r.type] || 'bg-gray-500'} text-white`}>
                       <FileText className="h-5 w-5" />
                     </div>
                     <div>
@@ -91,7 +122,7 @@ export function ReportsPage() {
           })}
         </div>
       ) : (
-        <RegulatorySourcesTab sources={demoRegulatorySources} />
+        <RegulatorySourcesTab sources={[]} />
       )}
 
       {selected && <ReportDetail report={selected} onClose={() => setSelected(null)} />}
@@ -209,7 +240,17 @@ function ReportDetail({ report, onClose }: { report: RegulatoryReport; onClose: 
                   <CheckCircle2 className="h-4 w-4" />
                   Approve Report
                 </button>
-                <button className="w-full py-2.5 rounded-lg border border-neutral-700 text-neutral-400 text-sm font-bold hover:text-white hover:border-neutral-600 transition-colors flex items-center justify-center gap-2">
+                <button 
+                  onClick={async () => {
+                    try {
+                      await api.generateReport(report.title, report.body);
+                      alert('Export generation started successfully.');
+                    } catch (err: any) {
+                      alert('Failed to generate report export: ' + err.message);
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-lg border border-neutral-700 text-neutral-400 text-sm font-bold hover:text-white hover:border-neutral-600 transition-colors flex items-center justify-center gap-2"
+                >
                   <Download className="h-4 w-4" />
                   Export as DOCX
                 </button>
@@ -219,7 +260,17 @@ function ReportDetail({ report, onClose }: { report: RegulatoryReport; onClose: 
                 </button>
               </>
             ) : (
-              <button className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2">
+              <button 
+                onClick={async () => {
+                  try {
+                    await api.generateReport(report.title, report.body);
+                    alert('Export generation started successfully.');
+                  } catch (err: any) {
+                    alert('Failed to generate report export: ' + err.message);
+                  }
+                }}
+                className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"
+              >
                 <Download className="h-4 w-4" />
                 Download DOCX
               </button>
