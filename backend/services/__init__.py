@@ -1,4 +1,3 @@
-"""Service layer exports."""
 
 from .case_service import case_service
 from .risk_service import risk_service

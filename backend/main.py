@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-# ── Path bootstrap — allows running from inside backend/ or from project root ──
 import sys, pathlib
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
-# ─────────────────────────────────────────────────────────────────────────────
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# ── Router imports (all real implementations) ────────────────────────────────
 from backend.api.alerts import router as alerts_router
 from backend.api.cases import router as cases_router
 from backend.api.copilot import router as copilot_router
 from backend.api.executions import router as executions_router
 from backend.api.reports import router as reports_router
 from backend.api.evidence import router as evidence_router
+from backend.api.regulatory import router as regulatory_router
 from backend.api.risk import router as risk_router
 from backend.api.transactions import router as transactions_router
 from backend.db.repositories.alert_repository import alert_repository
@@ -26,7 +24,6 @@ from backend.ml.model_loader import MODEL_LOADER
 
 app = FastAPI(title="RAILS Risk Sentinel", version="0.1.0")
 
-# ── CORS — allow the Vite dev server and any future deployed frontend ─────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -34,9 +31,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# ─────────────────────────────────────────────────────────────────────────────
 
-# Register routers FIRST so their paths win over any stubs below
 app.include_router(transactions_router)
 app.include_router(risk_router)
 app.include_router(alerts_router)
@@ -45,9 +40,9 @@ app.include_router(reports_router)
 app.include_router(copilot_router)
 app.include_router(evidence_router)
 app.include_router(executions_router)
+app.include_router(regulatory_router, prefix="/regulatory", tags=["Regulatory"])
 
 
-# ── Stand-alone endpoints (no dedicated router file) ─────────────────────────
 
 @app.get("/health", tags=["health"])
 def health() -> dict[str, object]:
@@ -95,7 +90,6 @@ def overview() -> dict[str, object]:
 
     total_tx = transaction_repository.count_total()
 
-    # Query all write-DB aggregates (alerts, cases, reports) in ONE single query over ONE connection
     alert_counts: dict[str, int] = {}
     case_counts: dict[str, int] = {}
     report_counts: dict[str, int] = {}
@@ -121,7 +115,6 @@ def overview() -> dict[str, object]:
                     elif metric == 'report':
                         report_counts[label] = c
     except Exception:
-        # Fall back to in-memory counts if DB connection is unavailable
         for a in alert_repository._alerts.values():
             rl = a.get('risk_level') or 'LOW'
             alert_counts[rl] = alert_counts.get(rl, 0) + 1

@@ -1,4 +1,3 @@
-"""ML and artifact-loading entry points."""
 
 from .model_loader import ModelLoader, load_all_models, load_model
 

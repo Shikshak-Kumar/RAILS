@@ -19,7 +19,6 @@ class LoadedModel:
 
 
 class ModelLoader:
-    """Load a saved model artifact by resolving the LATEST pointer in risk_out/models."""
 
     def __init__(self, model_root: Path | None = None) -> None:
         self.model_root = model_root or MODEL_ROOT
@@ -70,7 +69,6 @@ class ModelLoader:
 
     @staticmethod
     def _fix_pipeline_compatibility(pipe_or_dict: Any) -> None:
-        """Handle scikit-learn cross-version unpickling differences."""
         if isinstance(pipe_or_dict, dict):
             if 'model' in pipe_or_dict:
                 ModelLoader._fix_pipeline_compatibility(pipe_or_dict['model'])
@@ -94,7 +92,7 @@ class ModelLoader:
                 'metadata_loaded': bool(loaded.metadata),
                 'feature_order_loaded': bool(loaded.feature_order),
             }
-        except Exception as exc:  # pragma: no cover - guardrail
+        except Exception as exc:
             return {
                 'model_name': model_name,
                 'available': False,

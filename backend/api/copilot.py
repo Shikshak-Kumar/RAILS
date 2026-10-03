@@ -14,7 +14,6 @@ from backend.schemas.copilot import (
     ToolCallResponse,
 )
 
-# Backwards compatibility alias for code that imported ToolCallResult from copilot
 ToolCallResult = ToolCallResponse
 
 router = APIRouter(prefix="", tags=["copilot"])
@@ -41,7 +40,6 @@ def _build_grounded_answer(
     tool_calls: list[Any],
     risk_signals: list[str],
 ) -> str:
-    """Helper preserved for direct callers (e.g. risk_service.py)."""
     t_responses = []
     for tc in tool_calls:
         if isinstance(tc, ToolCallResponse):
@@ -68,15 +66,21 @@ def _handle_copilot_request(req: CopilotRequest) -> CopilotResponse:
     conversation_id = req.conversation_id or f"conv-{uuid.uuid4().hex[:10]}"
     session_id = req.session_id or f"sess-{uuid.uuid4().hex[:10]}"
 
-    exec_id, tool_responses, signals, verified, answer, drivers, intent = orchestrator.execute_copilot(
+    exec_res = orchestrator.execute_copilot(
         message=req.message,
         conversation_id=conversation_id,
         session_id=session_id,
         transaction_id=req.transaction_id,
         account_id=req.account_id,
     )
+    exec_id, tool_responses, signals, verified, answer, drivers, intent = exec_res
 
     evidence_ids = [tc.evidence_id for tc in tool_responses if tc.evidence_id]
+
+    investigation = getattr(exec_res, "investigation", None)
+    regulatory_citations = getattr(exec_res, "regulatory_citations", []) or []
+    regulatory_citation_ids = getattr(exec_res, "regulatory_citation_ids", []) or []
+    transactions = getattr(exec_res, "transactions", []) or []
 
     return CopilotResponse(
         response=answer,
@@ -91,6 +95,10 @@ def _handle_copilot_request(req: CopilotRequest) -> CopilotResponse:
         risk_signals=signals,
         risk_drivers=drivers,
         status="COMPLETED" if verified else "FAILED",
+        investigation=investigation,
+        regulatory_citations=regulatory_citations,
+        regulatory_citation_ids=regulatory_citation_ids,
+        transactions=transactions,
     )
 
 

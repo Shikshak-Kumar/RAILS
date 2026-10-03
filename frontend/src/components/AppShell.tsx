@@ -50,7 +50,7 @@ export function AppShell({ current, onNavigate, children }: Props) {
     return Number(localStorage.getItem('rails_cached_report_count')) || 0;
   });
   const [totalTx, setTotalTx] = useState<number>(() => {
-    return Number(localStorage.getItem('rails_cached_total_tx')) || 3100000;
+    return Number(localStorage.getItem('rails_cached_total_tx')) || 0;
   });
 
   useEffect(() => {
@@ -77,8 +77,6 @@ export function AppShell({ current, onNavigate, children }: Props) {
 
   useEffect(() => {
     refreshCounts();
-    const interval = setInterval(refreshCounts, 20000);
-    return () => clearInterval(interval);
   }, []);
 
 
@@ -89,7 +87,7 @@ export function AppShell({ current, onNavigate, children }: Props) {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex">
-      {/* Sidebar - Desktop */}
+      
       <aside className="hidden lg:flex w-64 flex-col border-r border-neutral-800 bg-neutral-950 fixed h-screen z-30">
         <SidebarContent
           current={current}
@@ -100,7 +98,7 @@ export function AppShell({ current, onNavigate, children }: Props) {
         />
       </aside>
 
-      {/* Sidebar - Mobile */}
+      
       {mobileOpen && (
         <>
           <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
@@ -122,9 +120,9 @@ export function AppShell({ current, onNavigate, children }: Props) {
         </>
       )}
 
-      {/* Main content */}
+      
       <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
-        {/* Top bar */}
+        
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-neutral-800 bg-neutral-950/95 backdrop-blur-sm px-4 lg:px-6 h-14">
           <div className="flex items-center gap-3">
             <button
@@ -142,12 +140,6 @@ export function AppShell({ current, onNavigate, children }: Props) {
             <span className="text-xs text-neutral-500 tabular-nums hidden sm:inline">
               {time.toLocaleTimeString('en-US', { hour12: false })}
             </span>
-            <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-full bg-neutral-700 flex items-center justify-center text-xs font-bold text-neutral-200">
-                RS
-              </div>
-              <span className="text-sm font-medium hidden sm:inline">Risk Analyst</span>
-            </div>
           </div>
         </header>
 
@@ -176,18 +168,17 @@ function SidebarContent({
 
   return (
     <>
-      {/* Logo */}
+      
       <div className="flex items-center gap-3 px-5 h-14 border-b border-neutral-800">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white">
           <ShieldCheck className="h-5 w-5 text-black" />
         </div>
         <div>
-          <div className="text-sm font-bold tracking-tight text-white">RAILS</div>
-          <div className="text-[10px] text-neutral-500 -mt-0.5">Risk Sentinel</div>
+          <div className="text-sm font-bold tracking-tight text-white">Risk Analysis</div>
         </div>
       </div>
 
-      {/* Nav */}
+      
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navDefinitions.map((item) => {
           const Icon = item.icon;
@@ -225,11 +216,11 @@ function SidebarContent({
         })}
       </nav>
 
-      {/* Footer */}
+      
       <div className="border-t border-neutral-800 px-5 py-3">
         <div className="text-[10px] text-neutral-600">
           <div>ML Models: 5 active</div>
-          <div className="mt-0.5">DB: {formattedTx} transactions</div>
+          <div className="mt-0.5">DB: {totalTx > 0 ? formattedTx : '...'} transactions</div>
           <div className="mt-1 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
             <span className="text-green-500">All systems operational</span>

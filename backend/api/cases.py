@@ -25,8 +25,10 @@ class CaseUpdate(BaseModel):
 def list_cases(
     status: str | None = None,
     search: str | None = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ) -> list[dict[str, Any]]:
-    return case_service.list_cases(status=status, search=search)
+    return case_service.list_cases(status=status, search=search, limit=limit, offset=offset)
 
 
 @router.post('/cases')

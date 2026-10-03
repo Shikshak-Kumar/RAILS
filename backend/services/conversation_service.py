@@ -21,7 +21,10 @@ class ConversationService:
                     "last_transaction_id": None,
                     "last_account_id": None,
                     "last_case_id": None,
+                    "last_intent": None,
+                    "last_investigation": None,
                     "recent_transaction_ids": [],
+                    "recent_transactions": [],
                     "recent_evidence_ids": [],
                 },
             }
@@ -37,6 +40,9 @@ class ConversationService:
         account_id: str | None = None,
         case_id: str | None = None,
         recent_tx_ids: list[str] | None = None,
+        recent_transactions: list[dict[str, Any]] | None = None,
+        investigation: Any | None = None,
+        intent: str | None = None,
         evidence_ids: list[str] | None = None,
     ) -> None:
         cid, conv = self.get_or_create(conversation_id)
@@ -47,15 +53,27 @@ class ConversationService:
             "timestamp": time.time(),
         })
 
-        # Update persistent context memory
         ctx = conv["context"]
         if transaction_id:
-            ctx["last_transaction_id"] = transaction_id
+            ctx["last_transaction_id"] = str(transaction_id)
         if account_id:
-            ctx["last_account_id"] = account_id
+            ctx["last_account_id"] = str(account_id)
         if case_id:
-            ctx["last_case_id"] = case_id
-        if recent_tx_ids:
+            ctx["last_case_id"] = str(case_id)
+        if intent:
+            ctx["last_intent"] = intent
+        if investigation:
+            ctx["last_investigation"] = investigation if isinstance(investigation, dict) else (
+                investigation.model_dump() if hasattr(investigation, "model_dump") else str(investigation)
+            )
+        if recent_transactions:
+            ctx["recent_transactions"] = list(recent_transactions)
+            extracted_ids = [str(t.get("transaction_id")) for t in recent_transactions if t.get("transaction_id")]
+            if extracted_ids:
+                ctx["recent_transaction_ids"] = extracted_ids
+                if not ctx["last_transaction_id"]:
+                    ctx["last_transaction_id"] = extracted_ids[0]
+        elif recent_tx_ids:
             ctx["recent_transaction_ids"] = list(recent_tx_ids)
             if not ctx["last_transaction_id"] and recent_tx_ids:
                 ctx["last_transaction_id"] = recent_tx_ids[0]

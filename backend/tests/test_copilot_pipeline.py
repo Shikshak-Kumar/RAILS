@@ -13,7 +13,6 @@ client = TestClient(app)
 
 
 def test_1_greeting_does_not_call_tools():
-    """Input: 'hi'. Expected: intent = conversation, tool_calls = []."""
     payload = {"message": "hi"}
     response = client.post("/copilot/query", json=payload)
     assert response.status_code == 200
@@ -26,10 +25,6 @@ def test_1_greeting_does_not_call_tools():
 
 
 def test_2_high_risk_query_uses_risk_tool():
-    """Input: 'give me the most high risk transactions'.
-
-    Expected: get_high_risk_transactions called, list_transactions NOT called.
-    """
     payload = {"message": "give me the most high risk transactions"}
     response = client.post("/copilot/query", json=payload)
     assert response.status_code == 200
@@ -42,7 +37,6 @@ def test_2_high_risk_query_uses_risk_tool():
 
 
 def test_3_high_risk_transactions_sorted():
-    """Returned risk scores must be strictly descending."""
     result = get_high_risk_transactions(limit=10, sort_by="risk_score")
     assert "items" in result
     items = result["items"]
@@ -54,7 +48,6 @@ def test_3_high_risk_transactions_sorted():
 
 
 def test_4_no_fake_risk_levels():
-    """Risk levels and scores must come from persisted backend assessment."""
     result = get_high_risk_transactions(limit=5)
     for item in result["items"]:
         assert item["risk_level"] in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
@@ -65,10 +58,6 @@ def test_4_no_fake_risk_levels():
 
 
 def test_5_account_query():
-    """Input: 'What is the risk profile of account 808B1C350?'.
-
-    Expected: account risk tool called.
-    """
     payload = {"message": "What is the risk profile of account 808B1C350?"}
     response = client.post("/copilot/query", json=payload)
     assert response.status_code == 200
@@ -79,10 +68,6 @@ def test_5_account_query():
 
 
 def test_6_latest_transactions():
-    """Input: 'show latest transactions'.
-
-    Expected: list_transactions called.
-    """
     payload = {"message": "show latest transactions"}
     response = client.post("/copilot/query", json=payload)
     assert response.status_code == 200
@@ -94,7 +79,6 @@ def test_6_latest_transactions():
 
 
 def test_7_copilot_response_is_pydantic():
-    """Response must validate against Pydantic CopilotResponse model."""
     payload = {"message": "what can you do?"}
     response = client.post("/copilot/query", json=payload)
     assert response.status_code == 200
@@ -106,14 +90,11 @@ def test_7_copilot_response_is_pydantic():
 
 
 def test_8_tool_failure():
-    """A failed tool must result in structured failure, not fabricated success."""
     with pytest.raises(Exception):
-        # Missing required args
         run_tool("get_transaction")
 
 
 def test_9_evidence_ids():
-    """Every factual database/risk claim must have corresponding evidence."""
     payload = {"message": "give me the most high risk transactions"}
     response = client.post("/copilot/query", json=payload)
     assert response.status_code == 200
@@ -124,9 +105,8 @@ def test_9_evidence_ids():
 
 
 def test_10_verifier_failure():
-    """If verifier detects unverified claims, verified=False."""
     class FakeBadAssessment:
-        risk_score = 99.9  # out of bounds (must be 0.0 to 1.0)
+        risk_score = 99.9
         risk_level = "CRITICAL"
 
     v_result = verifier.verify_assessment(FakeBadAssessment())

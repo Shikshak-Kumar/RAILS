@@ -5,7 +5,6 @@ from typing import Any, Callable
 
 
 class ToolValidationError(ValueError):
-    """Raised when a tool is called with missing or invalid arguments."""
     pass
 
 
@@ -125,13 +124,27 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
         name="get_high_risk_transactions",
         description="Query real PostgreSQL alerts for transactions with highest persisted risk score, fraud probability, or anomaly score.",
         required_args={},
-        optional_args={"limit": int, "offset": int, "min_risk_level": str, "sort_by": str},
+        optional_args={
+            "limit": int,
+            "offset": int,
+            "min_risk_level": str,
+            "risk_level": str,
+            "sort_by": str,
+            "fraud_probability_threshold": (int, float),
+            "min_fraud_probability": (int, float),
+        },
     ),
     "generate_report": ToolContract(
         name="generate_report",
         description="Generate an STR/SAR draft report for a compliance case.",
         required_args={"case_id": str},
         optional_args={"transaction_id": str, "narrative": str},
+    ),
+    "regulatory_search": ToolContract(
+        name="regulatory_search",
+        description="Retrieve authoritative regulatory passages and standards (FATF Recommendations, FinCEN SAR Filing Instructions, FinCEN SAR Narrative Guidance) from Snowflake.",
+        required_args={"query": str},
+        optional_args={"jurisdiction": str, "limit": int},
     ),
 }
 

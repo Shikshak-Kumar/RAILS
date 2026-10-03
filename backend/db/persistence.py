@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+import threading
+from typing import Any, Generator
 
 import psycopg
 
@@ -9,39 +11,88 @@ from backend.config import READ_DB_URL, WRITE_DB_URL
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
+_local = threading.local()
+
 
 def get_read_url() -> str:
-    """Connection URL for the read replica (contains transactions)."""
     return READ_DB_URL
 
 
 def get_write_url() -> str:
-    """Connection URL for the write database."""
     return WRITE_DB_URL
 
 
-# Keep a backward-compatible alias used by the repository layer
 def get_database_url() -> str:
-    """Returns the read DB URL (primary source of transaction data)."""
     return get_read_url()
 
 
 def ensure_schema() -> None:
-    """Apply schema migrations against the write database."""
     schema_sql = (ROOT_DIR / 'database' / 'schema.sql').read_text(encoding='utf-8')
-    with psycopg.connect(get_write_url()) as connection:
+    with psycopg.connect(get_write_url(), connect_timeout=10) as connection:
         with connection.cursor() as cursor:
             cursor.execute(schema_sql)
 
 
-def get_connection() -> Any:
-    """Return a read-replica connection (transactions live here)."""
-    return psycopg.connect(get_read_url(), connect_timeout=10)
+def _get_active_write_conn() -> psycopg.Connection[Any]:
+    conn = getattr(_local, 'write_conn', None)
+    if conn is not None and not conn.closed:
+        try:
+            with conn.cursor() as cur:
+                cur.execute('SELECT 1;')
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            conn = None
+    if conn is None or conn.closed:
+        _local.write_conn = psycopg.connect(get_write_url(), connect_timeout=10, autocommit=True)
+    return _local.write_conn
 
 
-def get_write_connection() -> Any:
-    """Return a write-database connection for inserts/updates."""
-    return psycopg.connect(get_write_url(), connect_timeout=10)
+def _get_active_read_conn() -> psycopg.Connection[Any]:
+    conn = getattr(_local, 'read_conn', None)
+    if conn is not None and not conn.closed:
+        try:
+            with conn.cursor() as cur:
+                cur.execute('SELECT 1;')
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            conn = None
+    if conn is None or conn.closed:
+        _local.read_conn = psycopg.connect(get_read_url(), connect_timeout=10, autocommit=True)
+    return _local.read_conn
+
+
+@contextmanager
+def get_write_connection() -> Generator[psycopg.Connection[Any], None, None]:
+    conn = _get_active_write_conn()
+    try:
+        yield conn
+    except Exception:
+        if not conn.closed:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        raise
+
+
+@contextmanager
+def get_connection() -> Generator[psycopg.Connection[Any], None, None]:
+    conn = _get_active_read_conn()
+    try:
+        yield conn
+    except Exception:
+        if not conn.closed:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        raise
 
 
 __all__ = [

@@ -1,10 +1,3 @@
-"""Compatibility shim for the saved training artifacts.
-
-The model artefacts in risk_out/ were created in the original training environment
-and may pickle custom classes from a module named risk_sentinel. The backend uses
-those artefacts verbatim, so we provide a lightweight compatibility layer that
-allows unpickling without changing the trained model logic itself.
-"""
 
 from __future__ import annotations
 
@@ -15,7 +8,6 @@ import numpy as np
 
 
 def _slog1p(x: Any) -> Any:
-    """Signed log1p transformation: sign(x) * log1p(|x|)."""
     x_arr = np.asarray(x, dtype=float)
     return np.sign(x_arr) * np.log1p(np.abs(x_arr))
 
@@ -42,12 +34,10 @@ class _CompatPlaceholder:
 
 
 class AccountScorer(_CompatPlaceholder):
-    """Account risk scorer class unpickled from training artifacts."""
     pass
 
 
 def __getattr__(name: str) -> Any:
-    """Return a placeholder class for any custom symbol referenced by a saved artefact."""
     if name == '_slog1p':
         return _slog1p
     if name == 'AccountScorer':

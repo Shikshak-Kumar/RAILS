@@ -30,7 +30,6 @@ class AlertRepository:
         evidence_ids_json = json.dumps(evidence_ids or [])
         alert_id = f"alt-{uuid4().hex[:10]}"
 
-        # Check in-memory store first
         if transaction_id in self._tx_to_alert:
             existing_id = self._tx_to_alert[transaction_id]
             if existing_id in self._alerts:
@@ -87,7 +86,6 @@ class AlertRepository:
                         self._tx_to_alert[transaction_id] = res['alert_id']
                         return res
         except Exception as e:
-            # Fallback for offline / mocked test environments
             pass
 
         record = {

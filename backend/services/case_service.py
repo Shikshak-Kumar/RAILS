@@ -28,11 +28,24 @@ class CaseService:
             return match.group(1)
         return ""
 
-    def _format_case(self, row: dict[str, Any]) -> dict[str, Any]:
+    def _format_case(self, row: dict[str, Any], alerts_map: dict[str, Any] | None = None) -> dict[str, Any]:
         cid = str(row.get('case_id', ''))
         summary = str(row.get('summary', ''))
         tx_id = str(row.get('transaction_id') or self._extract_tx_id(summary))
-        risk_level = 'CRITICAL' if 'CRITICAL' in summary.upper() else ('HIGH' if 'HIGH' in summary.upper() else 'MEDIUM')
+        risk_level = str(row.get('risk_level') or '') or None
+        if not risk_level:
+            if alerts_map and tx_id in alerts_map:
+                risk_level = alerts_map[tx_id].get('risk_level')
+            elif tx_id:
+                try:
+                    from backend.services.risk_service import risk_service
+                    cached = risk_service._canonical_risk_cache.get(tx_id)
+                    if cached:
+                        risk_level = cached.get('risk_level')
+                except Exception:
+                    pass
+        if not risk_level:
+            risk_level = 'CRITICAL' if 'CRITICAL' in summary.upper() else ('HIGH' if 'HIGH' in summary.upper() else ('MEDIUM' if 'MEDIUM' in summary.upper() else 'LOW'))
         
         created_at = row.get('created_at')
         if isinstance(created_at, datetime):
@@ -89,7 +102,17 @@ class CaseService:
                     params.extend([limit, offset])
                     cur.execute(query, tuple(params))
                     rows = cur.fetchall()
-                    return [self._format_case(dict(row)) for row in rows]
+                    dict_rows = [dict(row) for row in rows]
+                    tx_ids = [str(r.get('transaction_id') or self._extract_tx_id(r.get('summary', ''))) for r in dict_rows]
+                    tx_ids = [t for t in tx_ids if t]
+                    alerts_map: dict[str, Any] = {}
+                    if tx_ids:
+                        try:
+                            from backend.db.repositories.alert_repository import alert_repository
+                            alerts_map = alert_repository.get_alerts_by_txs(tx_ids)
+                        except Exception:
+                            pass
+                    return [self._format_case(r, alerts_map=alerts_map) for r in dict_rows]
         except Exception as e:
             print(f"Error listing cases: {e}")
             items = list(self._in_memory_cases.values())
@@ -109,7 +132,6 @@ class CaseService:
         transaction_id: str | None = None,
         alert_id: str | None = None,
     ) -> dict[str, Any]:
-        # Idempotency check: if transaction_id is provided, check if a case already exists for it
         if transaction_id:
             try:
                 with get_write_connection() as conn:

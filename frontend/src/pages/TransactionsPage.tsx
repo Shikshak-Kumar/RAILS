@@ -15,21 +15,24 @@ export function TransactionsPage() {
   const [riskFilter, setRiskFilter] = useState<RiskLevel | 'ALL'>('ALL');
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [total, setTotal] = useState<number>(3100000);
+  const [total, setTotal] = useState<number | null>(() => {
+    const cached = typeof window !== 'undefined' ? localStorage.getItem('rails_cached_total_tx') : null;
+    return cached ? Number(cached) : null;
+  });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Debounce search input
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1); // Reset to first page on search
+      setPage(1); 
     }, 400);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Fetch paginated transactions from backend
+  
   useEffect(() => {
     let mounted = true;
     setLoading(true);
@@ -40,8 +43,12 @@ export function TransactionsPage() {
       .then((res) => {
         if (!mounted) return;
         setTransactions(res.items || []);
-        if (res.total !== undefined && res.total !== null) {
-          setTotal(res.total);
+        if (res.total !== undefined && res.total !== null && Number(res.total) > 0) {
+          const actualTotal = Number(res.total);
+          setTotal(actualTotal);
+          try {
+            localStorage.setItem('rails_cached_total_tx', String(actualTotal));
+          } catch {}
         }
       })
       .catch((err) => {
@@ -59,21 +66,21 @@ export function TransactionsPage() {
 
   const filtered = useMemo(() => {
     if (riskFilter === 'ALL') return transactions;
-    return transactions.filter((t) => t.risk_assessment?.risk_level === riskFilter);
+    return transactions.filter((t) => (t.risk_level || t.risk_assessment?.risk_level) === riskFilter);
   }, [riskFilter, transactions]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((total ?? PAGE_SIZE) / PAGE_SIZE));
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Transactions</h1>
         <p className="text-sm text-neutral-400 mt-1">
-          {total.toLocaleString()} transactions across PostgreSQL read replica with real-time ML risk assessments
+          Real-time ML risk assessments and transaction monitoring across PostgreSQL read replica
         </p>
       </div>
 
-      {/* Filters */}
+      
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
@@ -102,7 +109,7 @@ export function TransactionsPage() {
         </div>
       </div>
 
-      {/* Table container */}
+      
       <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -138,25 +145,28 @@ export function TransactionsPage() {
                     {formatCurrency(tx.amount, tx.currency)}
                   </td>
                   <td className="py-3 px-4 hidden md:table-cell">
-                    {tx.risk_assessment ? (
+                    {tx.risk_assessment || tx.fraud_probability !== undefined ? (
                       <span
                         className={`text-xs font-bold tabular-nums ${
-                          tx.risk_assessment.fraud_probability >= 0.7
+                          (tx.fraud_probability ?? tx.risk_assessment?.fraud_probability ?? 0) >= 0.7
                             ? 'text-red-400'
-                            : tx.risk_assessment.fraud_probability >= 0.4
+                            : (tx.fraud_probability ?? tx.risk_assessment?.fraud_probability ?? 0) >= 0.4
                               ? 'text-yellow-400'
                               : 'text-green-400'
                         }`}
                       >
-                        {Math.round(tx.risk_assessment.fraud_probability * 100)}%
+                        {(() => {
+                          const prob = tx.fraud_probability ?? tx.risk_assessment?.fraud_probability ?? 0;
+                          return prob > 0 && prob < 0.001 ? `${(prob * 100).toFixed(3)}%` : `${Math.round(prob * 100)}%`;
+                        })()}
                       </span>
                     ) : (
                       <span className="text-xs text-neutral-600 font-mono">Unscored</span>
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    {tx.risk_assessment ? (
-                      <RiskBadge level={tx.risk_assessment.risk_level} />
+                    {tx.risk_level || tx.risk_assessment ? (
+                      <RiskBadge level={tx.risk_level || tx.risk_assessment?.risk_level || 'LOW'} />
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded bg-neutral-800 text-neutral-500 font-mono">
                         PENDING
@@ -185,14 +195,20 @@ export function TransactionsPage() {
           <div className="py-12 text-center text-sm text-neutral-500">No transactions match your search or filter.</div>
         )}
 
-        {/* Real Backend Pagination Controls */}
+        
         <div className="flex flex-col sm:flex-row items-center justify-between border-t border-neutral-800 bg-neutral-900/60 px-4 py-3 gap-3">
           <div className="text-xs text-neutral-400">
             Showing <span className="font-semibold text-neutral-200">{(page - 1) * PAGE_SIZE + 1}</span> to{' '}
             <span className="font-semibold text-neutral-200">
-              {Math.min(page * PAGE_SIZE, total)}
+              {total !== null
+                ? Math.min(page * PAGE_SIZE, total)
+                : Math.max((page - 1) * PAGE_SIZE + 1, (page - 1) * PAGE_SIZE + transactions.length)}
             </span>{' '}
-            of <span className="font-semibold text-neutral-200">{total.toLocaleString()}</span> transactions
+            of{' '}
+            <span className="font-semibold text-neutral-200">
+              {total !== null ? total.toLocaleString() : (loading ? '...' : transactions.length.toLocaleString())}
+            </span>{' '}
+            transactions
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -203,11 +219,11 @@ export function TransactionsPage() {
               ← Previous
             </button>
             <span className="text-xs text-neutral-400 px-2 font-mono">
-              Page {page} of {totalPages.toLocaleString()}
+              Page {page} of {total !== null ? totalPages.toLocaleString() : '—'}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || loading}
+              disabled={(total !== null && page >= totalPages) || loading}
               className="px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-900 text-xs font-medium text-neutral-300 hover:bg-neutral-800 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Next →
@@ -216,7 +232,7 @@ export function TransactionsPage() {
         </div>
       </div>
 
-      {/* Detail drawer */}
+      
       {selected && (
         <TransactionDetail
           tx={selected}
@@ -252,7 +268,7 @@ function TransactionDetail({
       setAnalyzing(true);
       setNotification(null);
       const res = await api.analyzeTransaction(tx.transaction_id);
-      const updated = { ...tx, risk_assessment: res };
+      const updated = { ...tx, risk_level: res.risk_level || tx.risk_level, risk_assessment: res };
       setTx(updated);
       onUpdate(updated);
       setNotification({ type: 'success', message: 'Risk assessment complete and verified.' });
@@ -291,7 +307,7 @@ function TransactionDetail({
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative w-full max-w-lg h-full bg-neutral-950 border-l border-neutral-800 overflow-y-auto">
-        {/* Header */}
+        
         <div className="sticky top-0 flex items-center justify-between px-5 py-4 border-b border-neutral-800 bg-neutral-950 z-10">
           <div>
             <h2 className="text-sm font-bold text-white">Transaction Detail</h2>
@@ -315,7 +331,7 @@ function TransactionDetail({
             </div>
           )}
 
-          {/* Transaction info */}
+          
           <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
             <DetailRow label="Sender" value={tx.sender_id} />
             <DetailRow label="Receiver" value={tx.receiver_id} />
@@ -333,12 +349,12 @@ function TransactionDetail({
             )}
           </div>
 
-          {/* Risk assessment */}
+          
           {ra && (
             <>
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-neutral-200">Risk Assessment</h3>
-                <RiskBadge level={ra.risk_level} size="md" />
+                <RiskBadge level={tx.risk_level || ra.risk_level} size="md" />
               </div>
 
               <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-4 space-y-4">
@@ -359,24 +375,9 @@ function TransactionDetail({
                     <div className="text-xs text-neutral-600">Production deployed models</div>
                   )}
                 </div>
-
-                <div className="pt-2 border-t border-neutral-800">
-                  <div className="text-xs text-neutral-500 mb-1">Evidence IDs</div>
-                  <div className="flex flex-wrap gap-2">
-                    {ra.evidence_ids && ra.evidence_ids.length > 0 ? (
-                      ra.evidence_ids.map((eid) => (
-                        <span key={eid} className="text-xs font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
-                          {eid}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-neutral-600">No evidence recorded</span>
-                    )}
-                  </div>
-                </div>
               </div>
 
-              {/* Signals */}
+              
               {ra.signals && ra.signals.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-neutral-200 mb-3">Risk Signals</h3>
@@ -390,7 +391,7 @@ function TransactionDetail({
             </>
           )}
 
-          {/* Actions */}
+          
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleAnalyze}

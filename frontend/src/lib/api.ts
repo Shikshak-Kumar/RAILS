@@ -2,7 +2,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 async function fetcher(endpoint: string, options: RequestInit = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 45000); 
 
   try {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -67,6 +67,7 @@ export const api = {
     const normalize = (tx: any) => ({
       ...tx,
       id: tx.id || tx.transaction_id,
+      risk_level: tx.risk_level || tx.risk_assessment?.risk_level || 'LOW',
       currency: tx.currency?.length > 4
         ? tx.currency.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 3)
         : (tx.currency || 'USD'),
@@ -81,7 +82,14 @@ export const api = {
     };
   },
 
-  getTransaction: (id: string) => fetcher(`/transactions/${id}`),
+  getTransaction: async (id: string) => {
+    const tx = await fetcher(`/transactions/${id}`);
+    return {
+      ...tx,
+      id: tx.id || tx.transaction_id,
+      risk_level: tx.risk_level || tx.risk_assessment?.risk_level || 'LOW',
+    };
+  },
 
   getRiskSignals: () => fetcher('/risk/signals'),
 
@@ -102,7 +110,7 @@ export const api = {
       title: c.title || c.summary || c.case_id,
       description: c.description || c.summary || '',
       status: c.status || 'OPEN',
-      risk_level: c.risk_level || 'MEDIUM',
+      risk_level: c.risk_level || 'LOW',
       assigned_to: c.assigned_to || 'Compliance Officer',
       created_at: c.created_at || new Date().toISOString(),
       updated_at: c.updated_at || c.created_at || new Date().toISOString(),
@@ -130,10 +138,12 @@ export const api = {
     });
   },
 
-  getReports: async (status?: string, caseId?: string) => {
+  getReports: async (status?: string, caseId?: string, limit = 50, offset = 0) => {
     const params = new URLSearchParams();
     if (status && status !== 'ALL') params.set('status', status);
     if (caseId) params.set('case_id', caseId);
+    if (limit) params.set('limit', String(limit));
+    if (offset) params.set('offset', String(offset));
     const query = params.toString() ? `?${params.toString()}` : '';
 
     const data = await fetcher(`/regulatory/reports${query}`);
@@ -149,10 +159,19 @@ export const api = {
       approved_by: r.approved_by || null,
       body: r.body || r.narrative || r.summary || '',
       evidence_ids: r.evidence_ids || [],
+      structured_data: r.structured_data || undefined,
     }));
   },
 
-  getReport: (id: string) => fetcher(`/regulatory/reports/${id}`),
+  getReport: async (id: string) => {
+    const r = await fetcher(`/regulatory/reports/${id}`);
+    return {
+      ...r,
+      id: r.id || r.report_id,
+      report_id: r.report_id || r.id,
+      structured_data: r.structured_data || undefined,
+    };
+  },
 
   generateSTRDraft: (caseId: string, transactionId?: string, narrative?: string) => {
     return fetcher('/reports/generate-str', {
@@ -195,6 +214,14 @@ export const api = {
   },
 
 
+  getRegulatoryChunk: (chunkId: string) => {
+    return fetcher(`/regulatory/chunks/${encodeURIComponent(chunkId)}`);
+  },
+
+  searchRegulatory: (query: string, limit: number = 5) => {
+    return fetcher(`/regulatory/search?query=${encodeURIComponent(query)}&limit=${limit}`);
+  },
+
   chatWithCopilot: async (
     message: string,
     intent?: string,
@@ -222,6 +249,9 @@ export const api = {
         result_summary: tc.result_summary || (typeof tc.result === 'object' ? JSON.stringify(tc.result).slice(0, 60) : String(tc.result || '')),
         evidence_id: tc.evidence_id || '',
       })),
+      regulatory_citations: res.regulatory_citations || [],
+      regulatory_citation_ids: res.regulatory_citation_ids || [],
+      investigation: res.investigation || null,
     };
   },
 

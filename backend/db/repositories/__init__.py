@@ -1,4 +1,3 @@
-"""Database repository layer."""
 
 from .transaction_repository import TransactionRepository, transaction_repository
 

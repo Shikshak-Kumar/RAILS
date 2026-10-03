@@ -2,7 +2,7 @@
   "name": "rails-risk-sentinel-ui",
   "private": true,
   "version": "1.0.0",
-  "description": "RAILS — Real-time Risk, Fraud and Regulatory Intelligence Sentinel Dashboard",
+  "description": "Risk Analysis — Real-time Risk, Fraud and Regulatory Intelligence Dashboard",
   "type": "module",
   "scripts": {
     "dev": "vite",

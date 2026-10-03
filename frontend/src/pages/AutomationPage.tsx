@@ -80,7 +80,7 @@ export function AutomationPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
@@ -107,9 +107,9 @@ export function AutomationPage() {
         </div>
       )}
 
-      {/* Main Grid */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Executions List Sidebar */}
+        
         <div className="lg:col-span-4 space-y-3">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Recent Executions</h2>
@@ -172,11 +172,11 @@ export function AutomationPage() {
           </div>
         </div>
 
-        {/* Selected Execution Visual Workflow DAG */}
+        
         <div className="lg:col-span-8 space-y-4">
           {selectedExecution ? (
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-6 space-y-6">
-              {/* Trace Metadata Overview */}
+              
               <div className="border-b border-neutral-800 pb-5 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -217,7 +217,7 @@ export function AutomationPage() {
                 </div>
               </div>
 
-              {/* Workflow Pipeline Timeline (n8n-style auditable trace) */}
+              
               <div className="space-y-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
                   Execution Trace Graph
@@ -231,7 +231,7 @@ export function AutomationPage() {
 
                     return (
                       <div key={step.step_id} className="relative">
-                        {/* Dot indicator on vertical spine */}
+                        
                         <div
                           className={`absolute -left-6 top-3 h-3 w-3 rounded-full border-2 ${
                             isCompleted
@@ -242,7 +242,7 @@ export function AutomationPage() {
                           }`}
                         />
 
-                        {/* Step Node Card */}
+                        
                         <div
                           onClick={() => setExpandedStep(isExpanded ? null : step.step_id)}
                           className={`rounded-xl border p-4 cursor-pointer transition-all ${
@@ -273,11 +273,6 @@ export function AutomationPage() {
                             </div>
 
                             <div className="flex items-center gap-3">
-                              {step.evidence_id && (
-                                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">
-                                  {step.evidence_id}
-                                </span>
-                              )}
                               <span className="font-mono text-xs text-neutral-400">
                                 {step.duration_ms} ms
                               </span>
@@ -307,7 +302,7 @@ export function AutomationPage() {
                             </p>
                           )}
 
-                          {/* Expandable Arguments & Details */}
+                          
                           {isExpanded && step.arguments && Object.keys(step.arguments).length > 0 && (
                             <div className="mt-3 pt-3 border-t border-neutral-800 space-y-2">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
@@ -325,7 +320,7 @@ export function AutomationPage() {
                 </div>
               </div>
 
-              {/* Final Grounded Output */}
+              
               {selectedExecution.final_answer && (
                 <div className="pt-4 border-t border-neutral-800 space-y-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-2">

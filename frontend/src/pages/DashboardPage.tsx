@@ -25,6 +25,7 @@ export function DashboardPage({ onNavigate }: Props) {
   const [recentHighRisk, setRecentHighRisk] = useState<Transaction[]>([]);
   const [recentCases, setRecentCases] = useState<Case[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [distView, setDistView] = useState<'all' | 'alerts'>('all');
 
   useEffect(() => {
     let mounted = true;
@@ -38,9 +39,10 @@ export function DashboardPage({ onNavigate }: Props) {
         if (!mounted) return;
         setStats(overviewRes);
 
-        const highRisk = (txRes.items || []).filter((t: Transaction) =>
-          t.risk_assessment && (t.risk_assessment.risk_level === 'HIGH' || t.risk_assessment.risk_level === 'CRITICAL')
-        ).slice(0, 6);
+        const highRisk = (txRes.items || []).filter((t: Transaction) => {
+          const r = t.risk_level || t.risk_assessment?.risk_level;
+          return r === 'HIGH' || r === 'CRITICAL';
+        }).slice(0, 6);
         setRecentHighRisk(highRisk);
 
         const casesList = (casesRes || []).slice(0, 4);
@@ -50,10 +52,8 @@ export function DashboardPage({ onNavigate }: Props) {
       }
     };
     fetchData();
-    const t = setInterval(fetchData, 10000); // refresh every 10s
     return () => {
       mounted = false;
-      clearInterval(t);
     };
   }, []);
 
@@ -71,12 +71,14 @@ export function DashboardPage({ onNavigate }: Props) {
     medium: 0,
     low: Math.max(0, stats.total_transactions - ((stats.critical_count || 0) + (stats.high_risk_count || 0))),
   };
-  const distTotal = stats.total_transactions > 0 ? stats.total_transactions : 1;
+  const totalAlerts = (dist.critical || 0) + (dist.high || 0) + (dist.medium || 0);
+  const distTotal = (dist.critical || 0) + (dist.high || 0) + (dist.medium || 0) + (dist.low || 0) || stats.total_transactions || 1;
+  const activeTotal = distView === 'alerts' ? (totalAlerts || 1) : distTotal;
   const modelStatus = rawStats.model_status || {};
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div>
         <h1 className="text-2xl font-bold text-white">Risk Intelligence Overview</h1>
         <p className="text-sm text-neutral-400 mt-1">
@@ -84,7 +86,7 @@ export function DashboardPage({ onNavigate }: Props) {
         </p>
       </div>
 
-      {/* Stat cards */}
+      
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Transactions"
@@ -139,23 +141,71 @@ export function DashboardPage({ onNavigate }: Props) {
         />
       </div>
 
-      {/* Main grid */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Risk distribution */}
+        
         <div className="lg:col-span-2 rounded-xl border border-neutral-800 bg-neutral-900/40 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-neutral-200">Risk Level Distribution</h2>
-            <span className="text-xs text-neutral-500">Live PostgreSQL Database</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-neutral-200">Risk Level Distribution</h2>
+              <span className="text-xs text-neutral-500">Live PostgreSQL Database</span>
+            </div>
+            <div className="flex items-center gap-1 bg-neutral-950 p-0.5 rounded-lg border border-neutral-800 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setDistView('all')}
+                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+                  distView === 'all'
+                    ? 'bg-neutral-800 text-white shadow-sm'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                All Ledger ({formatNumber(distTotal)})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDistView('alerts')}
+                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+                  distView === 'alerts'
+                    ? 'bg-neutral-800 text-white shadow-sm'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                Alerts Only ({formatNumber(totalAlerts)})
+              </button>
+            </div>
           </div>
           <div className="space-y-3">
-            <RiskDistRow label="Critical" count={dist.critical || 0} total={distTotal} color="bg-red-600" />
-            <RiskDistRow label="High" count={dist.high || 0} total={distTotal} color="bg-red-500" />
-            <RiskDistRow label="Medium" count={dist.medium || 0} total={distTotal} color="bg-yellow-500" />
-            <RiskDistRow label="Low" count={dist.low || 0} total={distTotal} color="bg-green-600" />
+            <RiskDistRow
+              label="Critical"
+              count={dist.critical || 0}
+              total={activeTotal}
+              color="bg-red-600"
+              subPct={distView === 'all' && totalAlerts > 0 ? `${(((dist.critical || 0) / totalAlerts) * 100).toFixed(1)}% of alerts` : undefined}
+            />
+            <RiskDistRow
+              label="High"
+              count={dist.high || 0}
+              total={activeTotal}
+              color="bg-red-500"
+              subPct={distView === 'all' && totalAlerts > 0 ? `${(((dist.high || 0) / totalAlerts) * 100).toFixed(1)}% of alerts` : undefined}
+            />
+            <RiskDistRow
+              label="Medium"
+              count={dist.medium || 0}
+              total={activeTotal}
+              color="bg-yellow-500"
+            />
+            <RiskDistRow
+              label="Low"
+              count={distView === 'alerts' ? 0 : (dist.low || 0)}
+              total={activeTotal}
+              color="bg-green-600"
+            />
           </div>
         </div>
 
-        {/* Model status */}
+        
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-5">
           <h2 className="text-sm font-semibold text-neutral-200 mb-4">ML Model Status</h2>
           <div className="space-y-3">
@@ -188,7 +238,7 @@ export function DashboardPage({ onNavigate }: Props) {
         </div>
       </div>
 
-      {/* Recent high-risk transactions */}
+      
       <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-neutral-200">Recent High-Risk Transactions</h2>
@@ -240,7 +290,7 @@ export function DashboardPage({ onNavigate }: Props) {
                       </span>
                     </td>
                     <td className="py-2.5 pr-4">
-                      <RiskBadge level={tx.risk_assessment!.risk_level} />
+                      <RiskBadge level={tx.risk_level || tx.risk_assessment?.risk_level || 'LOW'} />
                     </td>
                     <td className="py-2.5 text-xs text-neutral-500">{timeAgo(tx.timestamp)}</td>
                   </tr>
@@ -251,7 +301,7 @@ export function DashboardPage({ onNavigate }: Props) {
         </div>
       </div>
 
-      {/* Recent cases */}
+      
       <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-neutral-200">Active Cases</h2>
@@ -290,7 +340,7 @@ export function DashboardPage({ onNavigate }: Props) {
         )}
       </div>
 
-      {/* Copilot teaser */}
+      
       <div className="rounded-xl border border-neutral-800 bg-gradient-to-r from-neutral-900/80 to-neutral-900/40 p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -358,16 +408,51 @@ function StatCard({
   );
 }
 
-function RiskDistRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
+function formatRiskPercent(count: number, total: number): string {
+  if (count <= 0 || total <= 0) return '0.0%';
   const pct = (count / total) * 100;
+  if (pct >= 99.99 && pct < 100) return `${pct.toFixed(2)}%`;
+  if (pct < 0.01) {
+    const formatted = pct.toFixed(3);
+    return formatted === '0.000' ? '<0.001%' : `${formatted}%`;
+  }
+  if (pct < 0.1) return `${pct.toFixed(2)}%`;
+  return `${pct.toFixed(1)}%`;
+}
+
+function RiskDistRow({
+  label,
+  count,
+  total,
+  color,
+  subPct,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  color: string;
+  subPct?: string;
+}) {
+  const pct = total > 0 ? (count / total) * 100 : 0;
+  const pctDisplay = formatRiskPercent(count, total);
+  const barWidth = count > 0 ? Math.min(100, Math.max(pct, 1.5)) : 0;
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-medium text-neutral-300">{label}</span>
-        <span className="text-xs text-neutral-500 tabular-nums">{formatNumber(count)} ({pct.toFixed(1)}%)</span>
+        <div className="flex items-center gap-2">
+          {subPct && (
+            <span className="text-[10px] text-neutral-400 bg-neutral-800/60 px-1.5 py-0.5 rounded font-mono">
+              {subPct}
+            </span>
+          )}
+          <span className="text-xs text-neutral-400 tabular-nums">
+            {formatNumber(count)} <span className="text-neutral-500">({pctDisplay})</span>
+          </span>
+        </div>
       </div>
       <div className="h-2.5 w-full rounded-full bg-neutral-800 overflow-hidden">
-        <div className={`h-2.5 ${color} rounded-full transition-all duration-1000`} style={{ width: `${Math.min(pct, 100)}%` }} />
+        <div className={`h-2.5 ${color} rounded-full transition-all duration-500`} style={{ width: `${barWidth}%` }} />
       </div>
     </div>
   );

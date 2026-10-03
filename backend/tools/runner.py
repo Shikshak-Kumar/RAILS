@@ -9,10 +9,8 @@ from backend.tools.registry import get_tool, list_tools
 
 
 def run_tool(name: str, *, execution_id: str | None = None, **kwargs: Any) -> Any:
-    # 1. Validate tool arguments against explicit contract
     validate_tool_call(name, kwargs)
 
-    # 2. Track step if part of an execution trace
     step_id = None
     t0 = time.time()
     if execution_id:
@@ -23,7 +21,6 @@ def run_tool(name: str, *, execution_id: str | None = None, **kwargs: Any) -> An
             arguments=kwargs,
         )
 
-    # 3. Execute tool
     try:
         tool = get_tool(name)
         result = tool(**kwargs)

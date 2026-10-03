@@ -17,6 +17,7 @@ const statusConfig: Record<string, { color: string; bg: string; icon: React.Comp
 
 export function CasesPage() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<CaseStatus | 'ALL'>('ALL');
   const [selected, setSelected] = useState<Case | null>(null);
 
@@ -24,11 +25,20 @@ export function CasesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCases = async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const fetchCases = async (statusOverride?: CaseStatus | 'ALL', searchOverride?: string) => {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.getCases(statusFilter, search);
+      const effectiveStatus = statusOverride !== undefined ? statusOverride : statusFilter;
+      const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
+      const res = await api.getCases(effectiveStatus, effectiveSearch);
       setCases(res || []);
     } catch (err: any) {
       setError(err.message);
@@ -38,11 +48,12 @@ export function CasesPage() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCases();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [statusFilter, search]);
+    fetchCases(statusFilter, debouncedSearch);
+  }, [statusFilter, debouncedSearch]);
+
+  const handleStatusFilterChange = (newStatus: CaseStatus | 'ALL') => {
+    setStatusFilter(newStatus);
+  };
 
   return (
     <div className="space-y-6">
@@ -53,7 +64,7 @@ export function CasesPage() {
         </p>
       </div>
 
-      {/* Filters */}
+      
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
@@ -65,11 +76,11 @@ export function CasesPage() {
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-neutral-900 border border-neutral-800 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition-colors"
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {(['ALL', 'OPEN', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'FILED'] as const).map((s) => (
             <button
               key={s}
-              onClick={() => setStatusFilter(s)}
+              onClick={() => handleStatusFilterChange(s)}
               className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                 statusFilter === s
                   ? 'bg-white text-black'
@@ -79,10 +90,16 @@ export function CasesPage() {
               {s.replace('_', ' ')}
             </button>
           ))}
+          {loading && (
+            <div className="flex items-center gap-1.5 text-xs text-neutral-400 ml-2 animate-pulse">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-neutral-400" />
+              <span>Updating...</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Case cards */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {cases.map((c) => {
           const sc = statusConfig[c.status] || statusConfig['OPEN'];
@@ -118,14 +135,27 @@ export function CasesPage() {
         })}
       </div>
 
-      {loading && (
-        <div className="py-12 text-center text-sm text-neutral-500">Loading cases from database...</div>
-      )}
       {error && (
         <div className="py-12 text-center text-sm text-red-500">Error loading cases: {error}</div>
       )}
       {!loading && !error && cases.length === 0 && (
-        <div className="py-12 text-center text-sm text-neutral-500">No cases match your filters.</div>
+        <div className="py-12 text-center text-sm text-neutral-500">
+          {search ? (
+            `No cases match search "${search}".`
+          ) : statusFilter === 'APPROVED' ? (
+            'No approved cases found.'
+          ) : statusFilter === 'UNDER_REVIEW' ? (
+            'No cases under review found.'
+          ) : statusFilter === 'REJECTED' ? (
+            'No rejected cases found.'
+          ) : statusFilter === 'FILED' ? (
+            'No filed cases found.'
+          ) : statusFilter === 'OPEN' ? (
+            'No open cases found.'
+          ) : (
+            'No cases match your filters.'
+          )}
+        </div>
       )}
 
       {selected && <CaseDetail caseData={selected} onClose={() => setSelected(null)} onRefresh={fetchCases} />}
@@ -162,9 +192,10 @@ function CaseDetail({ caseData, onClose, onRefresh }: { caseData: Case; onClose:
       setGeneratingSTR(true);
       setNotice(null);
       const rep = await api.generateSTRDraft(currentCase.case_id, currentCase.transaction_id);
+      const dur = rep.generation_metrics?.total_ms ? ` in ${rep.generation_metrics.total_ms}ms` : '';
       setNotice({
         type: 'success',
-        message: `STR Draft created successfully (${rep.report_id || 'STR'}). Available in Regulatory Reports tab.`,
+        message: `STR Draft created successfully${dur} (${rep.report_id || 'STR'}). Available in Regulatory Reports tab.`,
       });
     } catch (err: any) {
       setNotice({ type: 'error', message: `Failed to draft STR: ${err.message}` });
@@ -216,7 +247,11 @@ function CaseDetail({ caseData, onClose, onRefresh }: { caseData: Case; onClose:
 
           <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-neutral-500">Assigned to</span>
+              <span className="text-xs text-neutral-500">Transaction</span>
+              <span className="text-sm font-mono text-neutral-200">#{currentCase.transaction_id}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-neutral-500">Assigned officer</span>
               <span className="text-sm text-neutral-200">{currentCase.assigned_to}</span>
             </div>
             <div className="flex items-center justify-between">
@@ -226,20 +261,6 @@ function CaseDetail({ caseData, onClose, onRefresh }: { caseData: Case; onClose:
             <div className="flex items-center justify-between">
               <span className="text-xs text-neutral-500">Last updated</span>
               <span className="text-sm text-neutral-200">{formatDateTime(currentCase.updated_at)}</span>
-            </div>
-            <div className="pt-2 border-t border-neutral-800">
-              <span className="text-xs text-neutral-500">Evidence IDs</span>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {currentCase.evidence_ids && currentCase.evidence_ids.length > 0 ? (
-                  currentCase.evidence_ids.map((eid) => (
-                    <span key={eid} className="text-xs font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
-                      {eid}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-xs text-neutral-600">No linked evidence IDs</span>
-                )}
-              </div>
             </div>
           </div>
 
@@ -254,7 +275,7 @@ function CaseDetail({ caseData, onClose, onRefresh }: { caseData: Case; onClose:
             </div>
           )}
 
-          {/* Actions */}
+          
           <div className="space-y-2">
             <button
               onClick={handleGenerateReport}

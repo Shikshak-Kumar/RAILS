@@ -11,8 +11,8 @@ from uuid import uuid4
 class StepRecord:
     step_id: str
     name: str
-    step_type: str  # "planner" | "tool" | "evidence" | "verifier" | "output"
-    status: str     # "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED"
+    step_type: str
+    status: str
     started_at: str
     completed_at: str | None = None
     duration_ms: float = 0.0
@@ -26,7 +26,7 @@ class StepRecord:
 class ExecutionRecord:
     execution_id: str
     name: str
-    status: str  # "RUNNING" | "COMPLETED" | "FAILED"
+    status: str
     started_at: str
     input_query: str = ""
     completed_at: str | None = None
@@ -143,7 +143,6 @@ class ExecutionService:
 
     @staticmethod
     def _sanitize_args(args: dict[str, Any]) -> dict[str, Any]:
-        """Strip sensitive credentials if present."""
         sanitized = {}
         for k, v in args.items():
             if any(secret in k.lower() for secret in ("password", "secret", "token", "key")):

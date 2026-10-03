@@ -1,4 +1,3 @@
-"""RAILS backend package."""
 
 import sys, pathlib
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent

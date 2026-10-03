@@ -9,7 +9,6 @@ from backend.db.persistence import ensure_schema, get_write_connection
 
 
 class ReportRepository:
-    """PostgreSQL repository for regulatory and Suspicious Transaction Reports (STR/SAR)."""
 
     def __init__(self) -> None:
         self._reports: dict[str, dict[str, Any]] = {}
@@ -30,10 +29,12 @@ class ReportRepository:
         report_type: str = 'STR',
         status: str = 'DRAFT',
         evidence_ids: list[str] | None = None,
+        structured_data: dict[str, Any] | None = None,
         approved_by: str | None = None,
     ) -> dict[str, Any]:
         rid = report_id or f"rep-{uuid4().hex[:8]}"
         ev_ids = evidence_ids or []
+        sd = structured_data or {}
 
         if self._db_ready:
             try:
@@ -44,13 +45,14 @@ class ReportRepository:
                             """
                             INSERT INTO reports (
                                 report_id, case_id, type, title, status, body,
-                                evidence_ids, approved_by
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                evidence_ids, structured_data, approved_by
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s)
                             ON CONFLICT (report_id) DO UPDATE SET
                                 title = EXCLUDED.title,
                                 body = EXCLUDED.body,
                                 status = EXCLUDED.status,
                                 evidence_ids = EXCLUDED.evidence_ids,
+                                structured_data = EXCLUDED.structured_data,
                                 approved_by = EXCLUDED.approved_by,
                                 updated_at = CURRENT_TIMESTAMP
                             RETURNING *
@@ -63,6 +65,7 @@ class ReportRepository:
                                 status,
                                 body,
                                 json.dumps(ev_ids),
+                                json.dumps(sd),
                                 approved_by,
                             ),
                         )
@@ -84,6 +87,7 @@ class ReportRepository:
             'status': status,
             'body': body,
             'evidence_ids': ev_ids,
+            'structured_data': sd,
             'approved_by': approved_by,
             'created_at': now_iso,
             'updated_at': now_iso,
@@ -221,6 +225,14 @@ class ReportRepository:
                 row['evidence_ids'] = []
         elif row.get('evidence_ids') is None:
             row['evidence_ids'] = []
+
+        if isinstance(row.get('structured_data'), str):
+            try:
+                row['structured_data'] = json.loads(row['structured_data'])
+            except Exception:
+                row['structured_data'] = {}
+        elif not row.get('structured_data'):
+            row['structured_data'] = {}
 
         if isinstance(row.get('created_at'), datetime):
             row['created_at'] = row['created_at'].isoformat()

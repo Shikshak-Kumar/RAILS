@@ -63,7 +63,6 @@ def predict_transaction_fraud(
     frame = _as_frame(model.feature_order, feature_row, transaction_id, 'fraud_model')
     model_dict = model.pipeline
 
-    # 1. Execute supervised model + calibration
     raw_score = float(model_dict['model'].predict_proba(frame)[:, 1][0])
     if 'calibrator' in model_dict and model_dict['calibrator'] is not None:
         calibrated = model_dict['calibrator'].predict(np.asarray([raw_score], dtype=float))
@@ -74,7 +73,6 @@ def predict_transaction_fraud(
     thresholds = model.metadata.get('thresholds', {})
     risk_level = _risk_level(fraud_probability, thresholds)
 
-    # 2. Derive REAL signals only when conditions are true
     signals: list[str] = []
     signal_details: list[dict[str, Any]] = []
 
@@ -163,7 +161,6 @@ def predict_transaction_anomaly(
     pipe = model.pipeline['model'] if isinstance(model.pipeline, dict) and 'model' in model.pipeline else model.pipeline
     raw_decision = float(pipe.decision_function(frame)[0])
 
-    # Convert IsolationForest decision function to percentile using score_grid & grid
     score_grid = model.pipeline.get('score_grid') if isinstance(model.pipeline, dict) else None
     grid = model.pipeline.get('grid') if isinstance(model.pipeline, dict) else None
 
@@ -214,7 +211,6 @@ def predict_account_risk(
 ) -> dict[str, Any]:
     model = load_model('account_risk_model')
     
-    # Strictly filter prior history to prevent self-contamination
     if before is not None:
         from backend.ml.feature_adapter import _parse_ts
         before_dt = _parse_ts(before)

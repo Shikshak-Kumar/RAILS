@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS reports (
     status TEXT NOT NULL DEFAULT 'DRAFT',
     body TEXT NOT NULL,
     evidence_ids JSONB DEFAULT '[]'::jsonb,
+    structured_data JSONB DEFAULT '{}'::jsonb,
     approved_by TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -84,6 +85,9 @@ CREATE TABLE IF NOT EXISTS reports (
 
 CREATE INDEX IF NOT EXISTS idx_reports_case_id
     ON reports (case_id);
+
+CREATE INDEX IF NOT EXISTS idx_reports_status
+    ON reports (status);
 
 CREATE INDEX IF NOT EXISTS idx_reports_created_at
     ON reports (created_at DESC);

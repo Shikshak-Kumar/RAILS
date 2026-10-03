@@ -34,16 +34,13 @@ def evaluate_transaction_rules(
     receiver_history: list[dict[str, Any]] | None = None,
     pair_history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Deterministic, auditable rule evaluation based strictly on pre-transaction history."""
     ts = _parse_ts(timestamp)
     amount_float = max(float(amount), 0.0)
 
-    # Strictly prior history (timestamp < ts)
     s_hist = [item for item in (sender_history or []) if _parse_ts(item.get('timestamp')) < ts]
     r_hist = [item for item in (receiver_history or []) if _parse_ts(item.get('timestamp')) < ts]
     p_hist = [item for item in (pair_history or []) if _parse_ts(item.get('timestamp')) < ts]
 
-    # Sender stats
     s_cnt_1h = sum(1 for item in s_hist if (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 3600)
     s_cnt_24h = sum(1 for item in s_hist if (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 86400)
     s_inflow_1h = sum(float(item.get('amount', 0.0)) for item in s_hist if item.get('receiver_id') == sender_id and (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 3600)
@@ -62,7 +59,6 @@ def evaluate_transaction_rules(
 
     rules: list[dict[str, Any]] = []
 
-    # Rule 1: High transaction velocity
     v_triggered = s_cnt_1h >= 5 or s_cnt_24h >= 20
     rules.append({
         'rule': 'high_transaction_velocity',
@@ -72,7 +68,6 @@ def evaluate_transaction_rules(
         'description': f"Sender initiated {s_cnt_1h} transactions in the last hour (threshold: 5) and {s_cnt_24h} in 24h (threshold: 20)",
     })
 
-    # Rule 2: Unusually large amount compared with sender history
     amt_baseline_triggered = bool(sender_median > 0 and amount_float >= 5.0 * sender_median and len(sender_amounts) >= 3)
     rules.append({
         'rule': 'amount_above_sender_baseline',
@@ -82,7 +77,6 @@ def evaluate_transaction_rules(
         'description': f"Transaction amount ${amount_float:,.2f} is >= 5x sender historical median (${sender_median:,.2f})",
     })
 
-    # Rule 3: Rapid movement through accounts (pass-through layering)
     rapid_move_triggered = bool(s_inflow_1h > 0 and amount_float >= 0.75 * s_inflow_1h)
     rules.append({
         'rule': 'rapid_movement_through_accounts',
@@ -92,7 +86,6 @@ def evaluate_transaction_rules(
         'description': f"Immediate outflow of ${amount_float:,.2f} corresponds to >= 75% of recent 1h inflow (${s_inflow_1h:,.2f})",
     })
 
-    # Rule 4: High fan-out (rapid dispersal from one sender to multiple distinct receivers in 24h)
     s_distinct_receivers_24h = len({
         str(item.get('receiver_id'))
         for item in s_hist
@@ -108,7 +101,6 @@ def evaluate_transaction_rules(
         'description': f"Rapid fan-out: {s_distinct_receivers_24h} distinct receivers in 24h (ratio: {s_fanout_ratio:.2f})",
     })
 
-    # Rule 5: High fan-in (rapid aggregation into one receiver from multiple distinct senders in 24h)
     r_distinct_senders_24h = len({
         str(item.get('sender_id'))
         for item in r_hist
@@ -124,7 +116,6 @@ def evaluate_transaction_rules(
         'description': f"Rapid fan-in: {r_distinct_senders_24h} distinct senders in 24h (ratio: {r_fanin_ratio:.2f})",
     })
 
-    # Rule 6: New counterparty
     is_new_pair = len(p_hist) == 0
     rules.append({
         'rule': 'new_counterparty',
@@ -134,7 +125,6 @@ def evaluate_transaction_rules(
         'description': "First transaction recorded between this sender and receiver account pair",
     })
 
-    # Rule 7: Sudden sender behavior change (dormant/low activity to sudden spike)
     dormant_burst = bool(len(s_hist) >= 5 and s_cnt_24h == 0 and s_cnt_1h >= 3)
     rules.append({
         'rule': 'sudden_sender_behavior_change',
@@ -144,7 +134,6 @@ def evaluate_transaction_rules(
         'description': f"Dormant account surge: {s_cnt_1h} transactions in 1 hour after dormancy",
     })
 
-    # Rule 8: Suspicious transaction chain / pass-through volume
     high_chain_flow = bool(s_inflow_24h > 10000.0 and amount_float >= 0.8 * s_inflow_24h)
     rules.append({
         'rule': 'suspicious_transaction_chain',
@@ -157,7 +146,6 @@ def evaluate_transaction_rules(
     triggered_rules = [r['rule'] for r in rules if r['triggered']]
     triggered_details = [r for r in rules if r['triggered']]
 
-    # Determine deterministic escalation impact
     critical_triggers = sum(1 for r in rules if r['triggered'] and r['rule'] in {'rapid_movement_through_accounts', 'suspicious_transaction_chain'} and amount_float >= 50000.0)
     high_triggers = sum(1 for r in rules if r['triggered'] and r['rule'] in {'high_transaction_velocity', 'amount_above_sender_baseline', 'rapid_movement_through_accounts', 'high_fanout', 'high_fanin'})
 
@@ -166,7 +154,7 @@ def evaluate_transaction_rules(
         rule_risk_level = 'CRITICAL'
     elif high_triggers >= 1:
         rule_risk_level = 'HIGH'
-    elif triggered_rules:
+    elif triggered_rules and not (len(triggered_rules) == 1 and triggered_rules[0] == 'new_counterparty'):
         rule_risk_level = 'MEDIUM'
 
     return {

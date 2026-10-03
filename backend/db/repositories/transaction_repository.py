@@ -30,7 +30,7 @@ def _parse_timestamp(value: Any) -> datetime:
             if dt.tzinfo is None:
                 return dt.replace(tzinfo=timezone.utc)
             return dt
-        except ValueError as exc:  # pragma: no cover - fallback
+        except ValueError as exc:
             raise ValueError(f'Unsupported timestamp format: {value!r}') from exc
     raise TypeError(f'Unsupported timestamp type: {type(value)!r}')
 
@@ -139,20 +139,28 @@ class TransactionRepository:
         return record
 
     def get(self, transaction_id: str) -> TransactionRecord | None:
-        if transaction_id in self._transactions:
-            return self._transactions[transaction_id]
+        if not transaction_id or str(transaction_id).strip() in ('', 'N/A', 'None'):
+            return None
+
+        clean_str = str(transaction_id).strip()
+        if clean_str in self._transactions:
+            return self._transactions[clean_str]
         
+        db_id = None
+        try:
+            cand = clean_str.lower().replace('tx-', '').replace('tx_', '')
+            if cand.isdigit():
+                db_id = int(cand)
+        except Exception:
+            pass
+
+        if db_id is None:
+            return None
+
         try:
             with get_connection() as connection:
                 from psycopg.rows import dict_row
                 with connection.cursor(row_factory=dict_row) as cursor:
-                    # Convert string transaction_id back to int if possible, 
-                    # assuming the frontend might prefix it or use raw strings
-                    try:
-                        db_id = int(str(transaction_id).replace('tx-', ''))
-                    except ValueError:
-                        return None
-                        
                     cursor.execute(
                         """
                         SELECT id, timestamp, from_bank, sender_account, to_bank, receiver_account,
@@ -252,7 +260,6 @@ class TransactionRepository:
         before_dt = _parse_timestamp(before) if before is not None else None
         records: dict[str, dict[str, Any]] = {}
 
-        # 1. Query PostgreSQL read replica
         try:
             with get_connection() as connection:
                 from psycopg.rows import dict_row
@@ -293,10 +300,8 @@ class TransactionRepository:
                         mapped = self.map_db_row(row)
                         records[mapped['transaction_id']] = mapped
         except Exception as e:
-            # Safe fallback if DB is not available in isolated test environments
             pass
 
-        # 2. Check in-memory store
         for tx in self._transactions.values():
             if tx.sender_id == account_id or tx.receiver_id == account_id:
                 tx_ts = _parse_timestamp(tx.timestamp)
@@ -320,7 +325,6 @@ class TransactionRepository:
         before_dt = _parse_timestamp(before) if before is not None else None
         records: dict[str, dict[str, Any]] = {}
 
-        # 1. Query PostgreSQL read replica for both directions using UNION ALL for fast index scans
         try:
             with get_connection() as connection:
                 from psycopg.rows import dict_row
@@ -363,7 +367,6 @@ class TransactionRepository:
         except Exception as e:
             pass
 
-        # 2. Check in-memory store
         for tx in self._transactions.values():
             is_forward = (tx.sender_id == sender_id and tx.receiver_id == receiver_id)
             is_reverse = (tx.sender_id == receiver_id and tx.receiver_id == sender_id)
@@ -397,7 +400,6 @@ class TransactionRepository:
         try:
             with get_connection() as connection:
                 with connection.cursor() as cursor:
-                    # Instant statistical row count from pg_class (<1ms vs full table scan)
                     cursor.execute("SELECT reltuples::bigint FROM pg_class WHERE relname = 'transactions'")
                     row = cursor.fetchone()
                     if row and row[0] and int(row[0]) > 0:
@@ -405,7 +407,6 @@ class TransactionRepository:
                         self._cached_total = count
                         self._cached_total_time = now
                         return count
-                    # Fallback to count(*) if reltuples has not been populated
                     cursor.execute("SELECT count(*) FROM transactions")
                     row = cursor.fetchone()
                     if row:
@@ -418,7 +419,7 @@ class TransactionRepository:
 
         if self._cached_total is not None:
             return self._cached_total
-        return 3100000 + len(self._transactions)
+        return len(self._transactions)
 
 
 transaction_repository = TransactionRepository()

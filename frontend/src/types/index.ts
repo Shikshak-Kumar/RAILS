@@ -89,6 +89,53 @@ export interface Case {
   signals: RiskSignal[];
 }
 
+export interface RegulatoryCitationItem {
+  citation_id: string;
+  authority: string;
+  document_name: string;
+  jurisdiction: string;
+  section?: string | null;
+  page_number?: number | null;
+  summary: string;
+}
+
+export interface SupportingEvidenceItem {
+  evidence_id: string;
+  purpose: string;
+  source: string;
+}
+
+export interface STRDraft {
+  report_id: string;
+  case_id: string;
+  report_type: string;
+  status: string;
+  reporting_institution: string;
+  internal_case_id: string;
+  transaction_id: string;
+  transaction_date: string;
+  transaction_amount: number;
+  currency: string;
+  sender_account: string;
+  receiver_account: string;
+  payment_method: string;
+  risk_level: RiskLevel;
+  fraud_probability: number;
+  anomaly_score: number;
+  risk_signals: string[];
+  executive_summary: string;
+  suspicious_activity_description: string;
+  transaction_details: Record<string, any>;
+  risk_indicators: string[];
+  regulatory_context: RegulatoryCitationItem[];
+  supporting_evidence: SupportingEvidenceItem[];
+  analyst_notes: string;
+  recommended_next_step: string;
+  generated_at: string;
+  evidence_ids: string[];
+  regulatory_citation_ids: string[];
+}
+
 export interface RegulatoryReport {
   id: string;
   report_id: string;
@@ -100,6 +147,7 @@ export interface RegulatoryReport {
   approved_by: string | null;
   body: string;
   evidence_ids: string[];
+  structured_data?: STRDraft;
 }
 
 export interface Evidence {
@@ -114,6 +162,31 @@ export interface Evidence {
   model_version: string;
 }
 
+export interface RegulatoryCitation {
+  chunk_id: string;
+  document_id: string;
+  document_name: string;
+  authority: string;
+  jurisdiction: string;
+  section: string;
+  page_number: number;
+  chunk_text: string;
+  relevance_score?: number;
+}
+
+export interface RiskInvestigationData {
+  transaction_id: string;
+  risk_level: string;
+  summary: string;
+  verified_facts: string[];
+  risk_signals: string[];
+  regulatory_findings: string[];
+  investigation_finding: string;
+  recommended_action: string;
+  evidence_ids: string[];
+  regulatory_citation_ids: string[];
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -122,6 +195,10 @@ export interface ChatMessage {
   evidence_ids?: string[];
   verified?: boolean;
   tool_calls?: ToolCall[];
+  regulatory_citations?: RegulatoryCitation[];
+  regulatory_citation_ids?: string[];
+  investigation?: RiskInvestigationData;
+  transactions?: any[];
 }
 
 export interface ToolCall {

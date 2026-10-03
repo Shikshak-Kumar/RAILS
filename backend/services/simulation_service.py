@@ -18,7 +18,6 @@ class SimulationService:
         self._jobs: dict[str, dict[str, Any]] = {}
 
     def start_simulation_job(self, scenario_type: str, count: int = 20) -> str:
-        """Creates a background simulation job, persists to PostgreSQL, and returns job_id immediately."""
         job_id = f"simjob-{uuid4().hex[:10]}"
         count = max(1, min(count, 100))
         now_str = datetime.now(timezone.utc).isoformat()
@@ -42,7 +41,6 @@ class SimulationService:
         }
         self._jobs[job_id] = job_data
 
-        # Persist initial record to PostgreSQL
         self._db_insert_job(job_data)
 
         thread = threading.Thread(
@@ -54,11 +52,9 @@ class SimulationService:
         return job_id
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
-        """Returns job from memory cache or falls back to PostgreSQL persistence."""
         if job_id in self._jobs:
             return dict(self._jobs[job_id])
 
-        # Attempt to read from PostgreSQL if not present in memory
         db_job = self._db_get_job(job_id)
         if db_job:
             self._jobs[job_id] = db_job
@@ -152,7 +148,7 @@ class SimulationService:
                     for j in range(5)
                 ]
 
-            else:  # mixed_risk
+            else:
                 is_risky = (i % 3 == 0)
                 sender = primary_sender if is_risky else f"ACC_NORM_{i}"
                 receiver = f"ACC_DEST_{i}"
@@ -173,11 +169,9 @@ class SimulationService:
                 currency="USD",
             )
 
-            # Update job step
             self._jobs[job_id]["current_step"] = f"risk_analysis_{tx_id}"
             self._jobs[job_id]["current_transaction_id"] = tx_id
 
-            # Evaluate through the real production risk pipeline
             assessment = self.risk_service.analyze_transaction(
                 tx_input,
                 sender_history=sender_history,
@@ -213,13 +207,11 @@ class SimulationService:
                 'evidence_ids': assessment.evidence_ids,
             })
 
-            # Update progress in memory cache
             self._jobs[job_id]["completed"] = i + 1
             self._jobs[job_id]["progress"] = int(((i + 1) / count) * 100)
             self._jobs[job_id]["alerts_created"] = alerts_created
             self._jobs[job_id]["results"] = list(evaluated_transactions)
 
-        # Summary statistics
         high_risk_count = sum(1 for t in evaluated_transactions if t['risk_level'] in ('HIGH', 'CRITICAL'))
         medium_risk_count = sum(1 for t in evaluated_transactions if t['risk_level'] == 'MEDIUM')
         low_risk_count = sum(1 for t in evaluated_transactions if t['risk_level'] == 'LOW')
@@ -241,12 +233,8 @@ class SimulationService:
         self._jobs[job_id]["current_step"] = "finished"
         self._jobs[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
 
-        # Update final state in PostgreSQL
         self._db_update_job(self._jobs[job_id])
 
-    # ---------------------------------------------------------------------------
-    # Database Persistence Helpers
-    # ---------------------------------------------------------------------------
 
     def _db_insert_job(self, job: dict[str, Any]) -> None:
         try:
@@ -333,7 +321,6 @@ class SimulationService:
         return None
 
     def run_simulation(self, scenario_type: str, count: int = 20) -> dict[str, Any]:
-        """Synchronous run helper if needed."""
         job_id = self.start_simulation_job(scenario_type, count)
         job = self.get_job(job_id)
         return {

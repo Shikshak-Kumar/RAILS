@@ -28,7 +28,6 @@ class ToolCall(BaseModel):
         return "completed"
 
 
-# Backward compatibility aliases
 ToolCallResponse = ToolCall
 ToolCallRequest = ToolCall
 
@@ -38,7 +37,7 @@ class ExecutionStepModel(BaseModel):
 
     execution_id: str
     step_id: str
-    step_type: str  # "planner" | "tool" | "verifier" | "llm"
+    step_type: str
     name: str
     tool_name: str | None = None
     status: Literal["QUEUED", "RUNNING", "COMPLETED", "FAILED"] = "COMPLETED"
@@ -69,6 +68,50 @@ class CopilotRequest(BaseModel):
         return v.strip()
 
 
+class RegulatoryContextItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    chunk_id: str
+    document_id: str
+    document_name: str
+    authority: str
+    jurisdiction: str
+    section: str | None = None
+    page_number: int
+    chunk_text: str
+    relevance_score: float | None = None
+
+
+class InvestigationContext(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    transaction_data: dict[str, Any] = Field(default_factory=dict)
+    risk_data: dict[str, Any] = Field(default_factory=dict)
+    aml_signals: list[str] = Field(default_factory=list)
+    account_context: dict[str, Any] = Field(default_factory=dict)
+    regulatory_context: list[RegulatoryContextItem] = Field(default_factory=list)
+    historical_context: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class RiskInvestigationResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    transaction_id: str
+    risk_level: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] = "LOW"
+    risk_score: float | None = None
+    fraud_probability: float | None = None
+    anomaly_score: float | None = None
+    signals: list[str] = Field(default_factory=list)
+    summary: str
+    verified_facts: list[str] = Field(default_factory=list)
+    risk_signals: list[str] = Field(default_factory=list)
+    regulatory_findings: list[str] = Field(default_factory=list)
+    investigation_finding: str
+    recommended_action: str
+    evidence_ids: list[str] = Field(default_factory=list)
+    regulatory_citation_ids: list[str] = Field(default_factory=list)
+
+
 class CopilotResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -84,6 +127,10 @@ class CopilotResponse(BaseModel):
     risk_signals: list[str] = Field(default_factory=list)
     risk_drivers: list[str] = Field(default_factory=list)
     status: Literal["COMPLETED", "FAILED"] = "COMPLETED"
+    investigation: RiskInvestigationResponse | None = None
+    regulatory_citations: list[dict[str, Any]] = Field(default_factory=list)
+    regulatory_citation_ids: list[str] = Field(default_factory=list)
+    transactions: list[dict[str, Any]] = Field(default_factory=list)
 
     def model_post_init(self, __context: Any) -> None:
         if self.answer is None:

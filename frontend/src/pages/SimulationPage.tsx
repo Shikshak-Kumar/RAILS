@@ -196,7 +196,7 @@ export function SimulationPage() {
 
   return (
     <div className="space-y-6">
-      {/* Title */}
+      
       <div>
         <h1 className="text-2xl font-bold text-white">Simulation Lab</h1>
         <p className="text-sm text-neutral-400 mt-1">
@@ -204,7 +204,7 @@ export function SimulationPage() {
         </p>
       </div>
 
-      {/* Active Job Status Banner */}
+      
       {isRunning && (
         <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -240,7 +240,7 @@ export function SimulationPage() {
         </div>
       )}
 
-      {/* Completed Banner */}
+      
       {status === 'COMPLETED' && (
         <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -255,7 +255,7 @@ export function SimulationPage() {
         </div>
       )}
 
-      {/* Scenario picker */}
+      
       <div>
         <h2 className="text-sm font-semibold text-neutral-200 mb-3">Select Scenario</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -300,7 +300,7 @@ export function SimulationPage() {
         </div>
       </div>
 
-      {/* Controls */}
+      
       <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
@@ -356,7 +356,7 @@ export function SimulationPage() {
         </div>
       )}
 
-      {/* Summary */}
+      
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
@@ -392,7 +392,7 @@ export function SimulationPage() {
         </div>
       )}
 
-      {/* Results table */}
+      
       {results.length > 0 && (
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 overflow-hidden">
           <div className="p-4 border-b border-neutral-800 flex items-center justify-between">

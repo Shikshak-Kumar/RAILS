@@ -105,8 +105,6 @@ def build_feature_row(
 ) -> dict[str, float | int]:
     ts = _parse_ts(timestamp)
 
-    # 1. STRICT PRE-TRANSACTION HISTORY FILTER (timestamp < ts)
-    # Prevents self-contamination and data leakage
     s_hist = [item for item in (sender_history or []) if _parse_ts(item.get('timestamp')) < ts]
     r_hist = [item for item in (receiver_history or []) if _parse_ts(item.get('timestamp')) < ts]
     p_hist = [item for item in (pair_history or []) if _parse_ts(item.get('timestamp')) < ts]
@@ -129,7 +127,6 @@ def build_feature_row(
 
     is_self_transfer = 1 if sender_id == receiver_id else 0
 
-    # Sender rolling time-window counts & amounts
     s_cnt_5m = sum(1 for item in s_hist if (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 300)
     s_cnt_1h = sum(1 for item in s_hist if (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 3600)
     s_cnt_24h = sum(1 for item in s_hist if (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 86400)
@@ -158,14 +155,12 @@ def build_feature_row(
             if diff > 0:
                 s_secs_since_last = diff
 
-    # Receiver history metrics
     r_hist_cnt = len(r_hist)
     r_hist_mean_log = _mean([math.log1p(_safe_float(item.get('amount'))) for item in r_hist])
     r_amt_ratio = (sum(receiver_values) / max(amount_float, 1.0)) if receiver_values else 0.0
     r_in_cnt_1h = sum(1 for item in r_hist if (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 3600 and item.get('receiver_id') == receiver_id)
     r_in_cnt_24h = sum(1 for item in r_hist if (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 86400 and item.get('receiver_id') == receiver_id)
 
-    # Graph degree and counterparty fan-in / fan-out
     s_out_deg = sum(1 for item in s_hist if item.get('sender_id') == sender_id)
     s_in_deg = sum(1 for item in s_hist if item.get('receiver_id') == sender_id)
     r_in_deg = sum(1 for item in r_hist if item.get('receiver_id') == receiver_id)
@@ -173,13 +168,11 @@ def build_feature_row(
     s_fanout_ratio = s_out_deg / max(1.0, float(s_in_deg + s_out_deg))
     r_fanin_ratio = r_in_deg / max(1.0, float(r_in_deg + r_out_deg))
 
-    # Pair metrics
     is_new_pair = 1 if len(p_hist) == 0 else 0
     pair_hist_cnt = len(p_hist)
     pair_share = pair_hist_cnt / max(1.0, float(s_hist_cnt + r_hist_cnt))
     reverse_pair_cnt = sum(1 for item in p_hist if item.get('sender_id') == receiver_id and item.get('receiver_id') == sender_id)
 
-    # Inflow and pass-through flow metrics
     s_inflow_1h = sum(_safe_float(item.get('amount')) for item in s_hist if item.get('receiver_id') == sender_id and (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 3600)
     s_inflow_24h = sum(_safe_float(item.get('amount')) for item in s_hist if item.get('receiver_id') == sender_id and (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 86400)
     pass_through_24h = min(s_inflow_24h, s_amt_24h) if (s_inflow_24h > 0 and s_amt_24h > 0) else sum(_safe_float(item.get('amount')) for item in s_hist if item.get('receiver_id') != sender_id and (ts - _parse_ts(item.get('timestamp'))).total_seconds() <= 86400)
