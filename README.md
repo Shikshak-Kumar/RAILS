@@ -1,16 +1,10 @@
 # RAILS — Real-time Anti-Financial Crime Intelligence & Ledger Sentinel
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-rails--src--lwnn.vercel.app-22c55e?style=for-the-badge&logo=vercel&logoColor=white)](https://rails-src-lwnn.vercel.app/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React%2018-TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![Snowflake](https://img.shields.io/badge/Snowflake-Cortex%20Search-29B5E8?style=for-the-badge&logo=snowflake&logoColor=white)](https://www.snowflake.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://supabase.com/)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+
 
 **RAILS** is an enterprise-grade financial crime intelligence, AML surveillance, and regulatory compliance orchestration platform. It unifies **real-time transaction surveillance**, **calibrated machine learning risk scoring**, **authoritative regulatory retrieval-augmented generation (RAG)**, and an **autonomous AI Copilot** into an end-to-end investigation dashboard.
 
-🔗 **Deployed Web Application**: [https://rails-src-lwnn.vercel.app/](https://rails-src-lwnn.vercel.app/)
 
 ---
 
@@ -220,82 +214,7 @@ Financial crime compliance demands strict traceability. RAILS implements a two-t
 - **Relational DB**: [PostgreSQL](https://www.postgresql.org/) / [Supabase](https://supabase.com/) (`psycopg3`, connection pooling, bulk `COPY` operations)
 - **Data Warehouse**: [Snowflake](https://www.snowflake.com/) (`snowflake-connector-python`, Cortex Search)
 
----
 
-## 📁 Repository Structure
-
-```
-RAILS/
-├── README.md                           # Main Project Documentation
-├── server.log                          # Local execution logs
-├── database/                           # Database schemas & ingestion scripts
-│   ├── schema.sql                      # PostgreSQL / Supabase DDL (transactions, cases, alerts, reports)
-│   ├── import_transactions.py          # High-speed bulk CSV streaming importer (COPY in 50k chunks)
-│   ├── verify_transactions.py          # Database integrity & verification script
-│   └── README.md                       # Ingestion documentation
-├── backend/                            # FastAPI backend microservice
-│   ├── main.py                         # Application entrypoint & overview endpoints
-│   ├── config.py                       # Configuration & environment variable loading
-│   ├── requirements.txt                # Python backend dependencies
-│   ├── api/                            # REST route controllers
-│   │   ├── transactions.py             # Ledger queries & details
-│   │   ├── alerts.py                   # Risk surveillance alerts
-│   │   ├── cases.py                    # Case management lifecycle
-│   │   ├── copilot.py                  # AI Copilot chat & tool-calling endpoint
-│   │   ├── executions.py               # Agent execution trace endpoints
-│   │   ├── reports.py                  # SAR/STR generation & approvals
-│   │   ├── regulatory.py               # Regulatory search & chunk lookup
-│   │   ├── risk.py                     # Account and transaction risk scoring
-│   │   └── evidence.py                 # Evidence store queries
-│   ├── db/                             # Persistence & repositories
-│   │   ├── persistence.py              # PostgreSQL connection management
-│   │   └── repositories/               # Data access repositories
-│   ├── ml/                             # Machine learning inference engine
-│   │   ├── model_loader.py             # Safe model deserialization & status checks
-│   │   ├── inference.py                # Online model inference runners
-│   │   ├── feature_adapter.py          # Real-time feature calculation
-│   │   └── rules.py                    # Deterministic AML rule definitions
-│   ├── llm/                            # AI Orchestration & Tool Calling
-│   │   ├── gemini_client.py            # Google Gemini API client
-│   │   ├── orchestrator.py             # Intent routing, planning, and multi-tool execution
-│   │   └── prompts.py                  # System prompts & compliance persona instructions
-│   ├── tools/                          # Registered Copilot tools & contracts
-│   │   ├── contracts.py                # Schema validation for tool calls
-│   │   └── runner.py                   # Tool execution dispatcher
-│   ├── verification/                   # Truthfulness & consistency verification
-│   │   └── verifier.py                 # Mathematical, evidence, and regulatory citation verifier
-│   ├── evidence/                       # Audit trail
-│   │   └── store.py                    # In-memory / persistent evidence store
-│   ├── services/                       # Business logic services
-│   │   ├── case_service.py             # Case state transitions
-│   │   ├── report_service.py           # SAR drafting service
-│   │   ├── regulatory_rag_service.py   # Hybrid Snowflake Cortex / local RAG
-│   │   ├── risk_service.py             # Aggregated risk assessment engine
-│   │   └── simulation_service.py       # Multi-scenario synthetic transaction simulator
-│   ├── regulatory_docs/                # Authoritative regulatory corpora & cache
-│   ├── snowflake/                      # Snowflake DDL & Cortex search connector
-│   ├── risk_out/                       # Trained ML artifacts, model registry & training summaries
-│   └── tests/                          # Pytest integration & unit test suite
-└── frontend/                           # React 18 + Vite frontend
-    ├── index.html                      # HTML entry point
-    ├── vite.config.ts                  # Vite build configuration
-    ├── package.json                    # Node dependencies & scripts
-    ├── tailwind.config.js              # Tailwind styling configuration
-    └── src/
-        ├── App.tsx                     # Main layout & hash router
-        ├── components/                 # Reusable UI components (AppShell, RiskBadge, RiskBar, SignalCard)
-        ├── pages/                      # 7 Platform views
-        │   ├── DashboardPage.tsx       # Executive overview & KPIs
-        │   ├── TransactionsPage.tsx    # Transaction ledger & drawer
-        │   ├── CopilotPage.tsx         # AI Copilot interactive chat
-        │   ├── AutomationPage.tsx      # Agent execution traces
-        │   ├── CasesPage.tsx           # Case management
-        │   ├── ReportsPage.tsx         # SAR/STR reporting & DOCX downloads
-        │   └── SimulationPage.tsx      # Interactive fraud simulation
-        └── lib/                        # API fetcher & utilities
-```
-
----
 
 ## 🛠 Getting Started & Local Setup
 
@@ -426,10 +345,3 @@ Open your browser at `http://localhost:5173`.
   - **Live URL**: [https://rails-src-lwnn.vercel.app/](https://rails-src-lwnn.vercel.app/)
 - **Backend**: Can be containerized via Docker or deployed to any cloud container service (Render, Railway, AWS ECS, Google Cloud Run) by exposing port `8000` with the corresponding PostgreSQL and Gemini credentials.
 
----
-
-## ⚖️ License & Compliance Disclaimer
-
-Distributed under the **MIT License**.
-
-> **Regulatory Notice**: RAILS is designed as an investigative surveillance and decision-support accelerator for certified compliance officers and financial analysts. Machine learning scores and AI-generated SAR narratives are draft recommendations subject to human-in-the-loop review before official submission to regulatory authorities (such as FinCEN, FATF, or local FIUs).
